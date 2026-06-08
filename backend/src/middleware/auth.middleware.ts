@@ -1,0 +1,40 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import UserModel from '../models/User.model';
+import { AppError } from '../utils/AppError';
+
+interface JwtPayload {
+  id: string;
+  role: string;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
+export const protect = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next(new AppError('Not authenticated. Please log in.', 401));
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+
+    const user = await UserModel.findById(decoded.id).select('-password');
+    if (!user) return next(new AppError('User no longer exists.', 401));
+    if (!user.isActive) return next(new AppError('Your account has been deactivated.', 403));
+
+    req.user = user;
+    next();
+  } catch (err: any) {
+    if (err.name === 'JsonWebTokenError') return next(new AppError('Invalid token.', 401));
+    if (err.name === 'TokenExpiredError') return next(new AppError('Token expired. Please log in again.', 401));
+    next(err);
+  }
+};
