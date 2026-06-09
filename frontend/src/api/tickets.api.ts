@@ -6,8 +6,8 @@ export const getTicketsApi = (params?: object) =>
 export const getTicketByIdApi = (id: string) =>
   api.get(`/tickets/${id}`);
 
-export const createTicketApi = (data: object) =>
-  api.post('/tickets', data);
+export const createTicketApi = (data: object | FormData, headers?: object) =>
+  api.post('/v1/tickets', data, { headers });
 
 export const updateTicketApi = (id: string, data: object) =>
   api.put(`/tickets/${id}`, data);
@@ -25,3 +25,9 @@ export const assignTicketApi = (id: string, data: { assignedTo: string }) =>
 
 export const addCommentApi = (id: string, data: { text: string }) =>
   api.post(`/tickets/${id}/comments`, data);
+
+export const uploadAttachmentsApi = (id: string, data: FormData, headers?: object) =>
+  api.post(`/v1/tickets/${id}/attachments`, data, { headers });
+
+export const deleteAttachmentApi = (ticketId: string, attachmentId: string) =>
+  api.delete(`/v1/tickets/${ticketId}/attachments/${attachmentId}`);

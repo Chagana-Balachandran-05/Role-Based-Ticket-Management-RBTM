@@ -8,6 +8,8 @@ import {
   updateTicketStatusApi,
   assignTicketApi,
   addCommentApi,
+  uploadAttachmentsApi,
+  deleteAttachmentApi,
 } from '../../api/tickets.api';
 import { Ticket, PaginatedTickets } from '../../types';
 
@@ -69,12 +71,47 @@ export const fetchTicketById = createAsyncThunk(
 
 export const createTicket = createAsyncThunk(
   'tickets/createTicket',
-  async (data: object, { rejectWithValue }) => {
+  async (payload: any, { rejectWithValue }) => {
     try {
-      const response = await createTicketApi(data);
+      let response;
+      if (payload && payload.data !== undefined) {
+        response = await createTicketApi(payload.data, payload.headers);
+      } else {
+        response = await createTicketApi(payload);
+      }
       return response.data.data as Ticket;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create ticket');
+    }
+  }
+);
+
+export const uploadAttachments = createAsyncThunk(
+  'tickets/uploadAttachments',
+  async (
+    { id, formData, headers }: { id: string; formData: FormData; headers?: object },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await uploadAttachmentsApi(id, formData, headers);
+      return response.data.data as Ticket;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to upload attachments');
+    }
+  }
+);
+
+export const deleteAttachment = createAsyncThunk(
+  'tickets/deleteAttachment',
+  async (
+    { ticketId, attachmentId }: { ticketId: string; attachmentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await deleteAttachmentApi(ticketId, attachmentId);
+      return response.data.data as Ticket;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete attachment');
     }
   }
 );
@@ -291,6 +328,48 @@ const ticketsSlice = createSlice({
       })
       .addCase(addComment.rejected, (state, action) => {
         state.commentLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Upload Attachments
+    builder
+      .addCase(uploadAttachments.pending, (state) => {
+        state.updateLoading = true;
+        state.error = null;
+      })
+      .addCase(uploadAttachments.fulfilled, (state, action) => {
+        state.updateLoading = false;
+        const index = state.tickets.findIndex((t) => t._id === action.payload._id);
+        if (index !== -1) {
+          state.tickets[index] = action.payload;
+        }
+        if (state.selectedTicket?._id === action.payload._id) {
+          state.selectedTicket = action.payload;
+        }
+      })
+      .addCase(uploadAttachments.rejected, (state, action) => {
+        state.updateLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Delete Attachment
+    builder
+      .addCase(deleteAttachment.pending, (state) => {
+        state.updateLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteAttachment.fulfilled, (state, action) => {
+        state.updateLoading = false;
+        const index = state.tickets.findIndex((t) => t._id === action.payload._id);
+        if (index !== -1) {
+          state.tickets[index] = action.payload;
+        }
+        if (state.selectedTicket?._id === action.payload._id) {
+          state.selectedTicket = action.payload;
+        }
+      })
+      .addCase(deleteAttachment.rejected, (state, action) => {
+        state.updateLoading = false;
         state.error = action.payload as string;
       });
   },

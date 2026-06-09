@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Paperclip, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import Layout from '../components/Layout';
 import GlassCard from '../components/GlassCard';
@@ -22,14 +22,66 @@ export default function CreateTicket() {
     defaultValues: { priority: 'Low', category: 'Bug' },
   });
 
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+
   useEffect(() => {
     return () => {
       dispatch(clearError());
     };
   }, [dispatch]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError(null);
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+
+      if (selectedFiles.length + filesArray.length > 5) {
+        setFileError('You can only upload a maximum of 5 files.');
+        return;
+      }
+
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.txt'];
+      for (const file of filesArray) {
+        if (file.size > 5 * 1024 * 1024) {
+          setFileError(`File "${file.name}" is too large. Maximum size is 5MB.`);
+          return;
+        }
+        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+          setFileError(`File "${file.name}" has an invalid file type. Only images, PDFs, and TXT files are allowed.`);
+          return;
+        }
+      }
+
+      setSelectedFiles((prev) => [...prev, ...filesArray]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const onSubmit = async (data: CreateTicketForm) => {
-    const result = await dispatch(createTicket(data));
+    const idempotencyKey = 'idem-' + Math.random().toString(36).substring(2, 9) + Date.now();
+
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('category', data.category);
+    formData.append('priority', data.priority);
+
+    selectedFiles.forEach((file) => {
+      formData.append('attachments', file);
+    });
+
+    const result = await dispatch(
+      createTicket({
+        data: formData,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      })
+    );
+
     if (createTicket.fulfilled.match(result)) {
       navigate('/tickets');
     }
@@ -102,6 +154,50 @@ export default function CreateTicket() {
                 </select>
                 {errors.priority && <span className="text-red-500 text-sm mt-1">{errors.priority.message}</span>}
               </div>
+            </div>
+
+            {/* File Attachments Upload Section */}
+            <div className="p-4 rounded-2xl bg-white/20 border border-white/10 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <Paperclip className="w-4 h-4 text-gray-500" />
+                <span>Attachments (Max 5 files, 5MB each)</span>
+              </label>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                disabled={createLoading}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 transition-all cursor-pointer"
+                accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt"
+              />
+              {fileError && <p className="text-red-500 text-sm">{fileError}</p>}
+
+              {/* Selected Files Preview List */}
+              {selectedFiles.length > 0 && (
+                <ul className="space-y-2 max-h-48 overflow-y-auto">
+                  {selectedFiles.map((file, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-white/40 border border-white/20 text-xs"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="font-medium truncate text-gray-700">{file.name}</span>
+                        <span className="text-gray-500 flex-shrink-0">
+                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        disabled={createLoading}
+                        className="text-red-500 hover:text-red-700 transition-all p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="flex gap-4 pt-4">

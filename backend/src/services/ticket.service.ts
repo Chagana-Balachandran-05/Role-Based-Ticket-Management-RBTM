@@ -4,6 +4,12 @@ import UserModel, { IUser } from '../models/User.model';
 import { AppError } from '../utils/AppError';
 import { generateTicketNumber } from '../utils/generateTicketNumber';
 import { CreateTicketDTO, UpdateTicketDTO, GetTicketsQueryDTO } from '../types/dtos';
+import fs from 'fs';
+import { calculateFileHash } from '../utils/hash';
+import { getQueue } from './queue/queueFactory';
+import AuditLogModel from '../models/AuditLog.model';
+import { deleteFromCloudinary } from '../config/cloudinary';
+import { logger } from '../utils/winston';
 
 const buildUserFilter = (user: IUser): mongoose.FilterQuery<ITicket> => {
   if (user.role === 'Admin') return {};
@@ -175,4 +181,147 @@ export const addComment = async (ticketId: string, text: string, userId: string,
 export const deleteTicket = async (id: string) => {
   const ticket = await TicketModel.findByIdAndDelete(id);
   if (!ticket) throw new AppError('Ticket not found', 404);
+};
+
+export const createTicketWithFiles = async (data: any, userId: string, files: any[]) => {
+  const ticketNumber = await generateTicketNumber();
+
+  const ticket = new TicketModel({
+    ...data,
+    ticketNumber,
+    createdBy: new mongoose.Types.ObjectId(userId),
+    statusHistory: [
+      { status: 'Open', changedBy: new mongoose.Types.ObjectId(userId), note: 'Ticket created', changedAt: new Date() },
+    ],
+    attachments: [],
+  });
+
+  const attachmentIds: mongoose.Types.ObjectId[] = [];
+
+  if (files && files.length > 0) {
+    for (const file of files) {
+      const fileHash = await calculateFileHash(file.path);
+      const attachmentId = new mongoose.Types.ObjectId();
+      attachmentIds.push(attachmentId);
+
+      ticket.attachments.push({
+        _id: attachmentId,
+        fileName: file.filename,
+        originalName: file.originalname,
+        url: '',
+        publicId: '',
+        mimeType: file.mimetype,
+        size: file.size,
+        fileHash,
+        uploadedBy: new mongoose.Types.ObjectId(userId),
+        status: 'pending',
+        tempPath: file.path,
+        uploadedAt: new Date(),
+      });
+    }
+  }
+
+  await ticket.save();
+
+  if (attachmentIds.length > 0) {
+    const queue = getQueue();
+    for (const attachmentId of attachmentIds) {
+      await queue.addJob(ticket._id.toString(), attachmentId.toString());
+    }
+  }
+
+  return ticket.populate(['createdBy', 'assignedTo']);
+};
+
+export const addAttachmentsToTicket = async (ticketId: string, userId: string, files: any[], user: any) => {
+  const ticket = await TicketModel.findById(ticketId);
+  if (!ticket) throw new AppError('Ticket not found', 404);
+
+  if (user.role === 'Agent' && ticket.assignedTo?.toString() !== userId) {
+    throw new AppError('Access denied. You are not assigned to this ticket.', 403);
+  }
+  if (user.role === 'User' && ticket.createdBy.toString() !== userId) {
+    throw new AppError('Access denied. You do not own this ticket.', 403);
+  }
+
+  const attachmentIds: mongoose.Types.ObjectId[] = [];
+
+  if (files && files.length > 0) {
+    for (const file of files) {
+      const fileHash = await calculateFileHash(file.path);
+      const attachmentId = new mongoose.Types.ObjectId();
+      attachmentIds.push(attachmentId);
+
+      ticket.attachments.push({
+        _id: attachmentId,
+        fileName: file.filename,
+        originalName: file.originalname,
+        url: '',
+        publicId: '',
+        mimeType: file.mimetype,
+        size: file.size,
+        fileHash,
+        uploadedBy: new mongoose.Types.ObjectId(userId),
+        status: 'pending',
+        tempPath: file.path,
+        uploadedAt: new Date(),
+      });
+    }
+  }
+
+  await ticket.save();
+
+  if (attachmentIds.length > 0) {
+    const queue = getQueue();
+    for (const attachmentId of attachmentIds) {
+      await queue.addJob(ticket._id.toString(), attachmentId.toString());
+    }
+  }
+
+  return ticket;
+};
+
+export const deleteAttachmentFromTicket = async (ticketId: string, attachmentId: string, userId: string, user: any) => {
+  const ticket = await TicketModel.findById(ticketId);
+  if (!ticket) throw new AppError('Ticket not found', 404);
+
+  if (user.role === 'Agent' && ticket.assignedTo?.toString() !== userId) {
+    throw new AppError('Access denied. You are not assigned to this ticket.', 403);
+  }
+  if (user.role === 'User' && ticket.createdBy.toString() !== userId) {
+    throw new AppError('Access denied. You do not own this ticket.', 403);
+  }
+
+  const attachmentIndex = ticket.attachments.findIndex((a) => a._id.toString() === attachmentId);
+  if (attachmentIndex === -1) throw new AppError('Attachment not found', 404);
+
+  const attachment = ticket.attachments[attachmentIndex];
+
+  if (attachment.status === 'uploaded' && attachment.publicId) {
+    try {
+      await deleteFromCloudinary(attachment.publicId);
+    } catch (err) {
+      logger.error(`Failed to delete Cloudinary file ${attachment.publicId}:`, err);
+    }
+  }
+
+  if (attachment.status === 'pending' && attachment.tempPath && fs.existsSync(attachment.tempPath)) {
+    try {
+      fs.unlinkSync(attachment.tempPath);
+    } catch (err) {
+      logger.error(`Failed to delete temp file ${attachment.tempPath}:`, err);
+    }
+  }
+
+  ticket.attachments.splice(attachmentIndex, 1);
+  await ticket.save();
+
+  await AuditLogModel.create({
+    action: 'ATTACHMENT_DELETED',
+    ticketId: new mongoose.Types.ObjectId(ticketId),
+    userId: new mongoose.Types.ObjectId(userId),
+    details: { fileName: attachment.originalName },
+  });
+
+  return ticket;
 };

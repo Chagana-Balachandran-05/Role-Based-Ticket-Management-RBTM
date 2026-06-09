@@ -18,12 +18,17 @@ declare global {
 
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    let token;
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(new AppError('Not authenticated. Please log in.', 401));
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query && req.query.token) {
+      token = req.query.token as string;
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return next(new AppError('Not authenticated. Please log in.', 401));
+    }
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
 
     const user = await UserModel.findById(decoded.id).select('-password');

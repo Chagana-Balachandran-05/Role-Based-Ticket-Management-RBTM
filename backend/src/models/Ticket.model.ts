@@ -14,6 +14,21 @@ export interface IStatusHistory {
   changedAt: Date;
 }
 
+export interface IAttachment {
+  _id: mongoose.Types.ObjectId;
+  fileName: string;
+  originalName: string;
+  url: string;
+  publicId: string;
+  mimeType: string;
+  size: number;
+  fileHash: string;
+  uploadedBy: mongoose.Types.ObjectId;
+  status: 'pending' | 'uploaded' | 'failed';
+  tempPath?: string; // For worker queue recovery
+  uploadedAt: Date;
+}
+
 export interface ITicket extends Document {
   _id: mongoose.Types.ObjectId;
   ticketNumber: string;
@@ -26,6 +41,7 @@ export interface ITicket extends Document {
   createdBy: mongoose.Types.ObjectId;
   comments: IComment[];
   statusHistory: IStatusHistory[];
+  attachments: IAttachment[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +62,22 @@ const StatusHistorySchema = new Schema<IStatusHistory>(
     changedAt: { type: Date, default: Date.now },
   },
   { _id: false }
+);
+
+const AttachmentSchema = new Schema<IAttachment>(
+  {
+    fileName: { type: String, required: true },
+    originalName: { type: String, required: true },
+    url: { type: String, default: '' },
+    publicId: { type: String, default: '' },
+    mimeType: { type: String, required: true },
+    size: { type: Number, required: true },
+    fileHash: { type: String, required: true },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    status: { type: String, enum: ['pending', 'uploaded', 'failed'], default: 'pending' },
+    tempPath: { type: String, default: '' },
+    uploadedAt: { type: Date, default: Date.now }
+  }
 );
 
 const TicketSchema = new Schema<ITicket>(
@@ -72,6 +104,7 @@ const TicketSchema = new Schema<ITicket>(
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     comments: [CommentSchema],
     statusHistory: [StatusHistorySchema],
+    attachments: [AttachmentSchema],
   },
   { timestamps: true }
 );

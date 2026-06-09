@@ -35,8 +35,15 @@ export default function AgentWorkspace() {
   const [commentText, setCommentText] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const isCommentsTab = location.pathname.endsWith('/comments');
+
+  useEffect(() => {
+    if (!listLoading && (!id || !detailLoading)) {
+      setInitialLoading(false);
+    }
+  }, [listLoading, detailLoading, id]);
 
   useEffect(() => {
     dispatch(fetchTickets({ page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc' }));
@@ -91,6 +98,19 @@ export default function AgentWorkspace() {
     }
   };
 
+  if (initialLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-400 text-sm">Loading workspace...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="flex gap-6 min-h-screen items-start">
@@ -111,11 +131,10 @@ export default function AgentWorkspace() {
                   <div
                     key={ticket._id}
                     onClick={() => navigate(`/agent/${ticket._id}`)}
-                    className={`p-3 rounded-xl cursor-pointer transition-all border ${
-                      id === ticket._id
-                        ? 'bg-emerald-50/80 border-emerald-300 shadow-sm'
-                        : 'bg-white/30 border-white/20 hover:bg-white/50'
-                    }`}
+                    className={`p-3 rounded-xl cursor-pointer transition-all border ${id === ticket._id
+                      ? 'bg-emerald-50/80 border-emerald-300 shadow-sm'
+                      : 'bg-white/30 border-white/20 hover:bg-white/50'
+                      }`}
                   >
                     <p className="text-xs font-semibold text-emerald-700 mb-0.5">{ticket.ticketNumber}</p>
                     <p className="text-sm font-medium text-gray-800 truncate mb-1.5">{ticket.title}</p>
@@ -188,22 +207,20 @@ export default function AgentWorkspace() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleTabChange('details')}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all ${
-                    !isCommentsTab
-                      ? 'bg-emerald-500 text-white shadow-md'
-                      : 'bg-white/40 text-gray-600 hover:bg-white/60'
-                  }`}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all ${!isCommentsTab
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'bg-white/40 text-gray-600 hover:bg-white/60'
+                    }`}
                 >
                   <FileText className="w-4 h-4" />
                   Ticket Details
                 </button>
                 <button
                   onClick={() => handleTabChange('comments')}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all ${
-                    isCommentsTab
-                      ? 'bg-emerald-500 text-white shadow-md'
-                      : 'bg-white/40 text-gray-600 hover:bg-white/60'
-                  }`}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-medium transition-all ${isCommentsTab
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'bg-white/40 text-gray-600 hover:bg-white/60'
+                    }`}
                 >
                   <MessageSquare className="w-4 h-4" />
                   Comments
@@ -371,7 +388,7 @@ export default function AgentWorkspace() {
                         {selectedTicket.comments.map((c) => (
                           <div key={c._id} className="flex gap-3 p-4 rounded-2xl bg-white/50 border border-white/30">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                               {getInitials(c.author?.name || 'U')}
+                              {getInitials(c.author?.name || 'U')}
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">

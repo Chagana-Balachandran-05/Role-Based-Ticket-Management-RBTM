@@ -21,6 +21,20 @@ export interface StatusHistory {
   changedAt: string;
 }
 
+export interface Attachment {
+  _id: string;
+  fileName: string;
+  originalName: string;
+  url: string;
+  publicId: string;
+  mimeType: string;
+  size: number;
+  fileHash: string;
+  uploadedBy: User | string;
+  status: 'pending' | 'uploaded' | 'failed';
+  uploadedAt: string;
+}
+
 export interface Ticket {
   _id: string;
   ticketNumber: string;
@@ -33,6 +47,7 @@ export interface Ticket {
   createdBy: User;
   comments: Comment[];
   statusHistory: StatusHistory[];
+  attachments?: Attachment[];
   createdAt: string;
   updatedAt: string;
 }

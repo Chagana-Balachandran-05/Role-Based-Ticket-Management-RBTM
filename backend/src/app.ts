@@ -7,10 +7,13 @@ import authRoutes from './routes/auth.routes';
 import ticketRoutes from './routes/ticket.routes';
 import userRoutes from './routes/user.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import v1TicketRoutes from './routes/v1Ticket.routes';
 import { globalErrorHandler } from './middleware/error.middleware';
 import { AppError } from './utils/AppError';
 
 const app = express();
+
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({
@@ -26,6 +29,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/v1/tickets', v1TicketRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
