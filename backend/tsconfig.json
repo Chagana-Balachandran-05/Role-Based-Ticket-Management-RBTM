@@ -9,8 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "typeRoots": ["./node_modules/@types"]
   },
-  "include": ["src/**/*", "server.ts", "seed.ts"],
+  "include": ["src/**/*", "server.ts", "seed.ts", "__tests__/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
