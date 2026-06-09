@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import UserModel from '../models/User.model';
+import UserModel, { IUser } from '../models/User.model';
 import { AppError } from '../utils/AppError';
 
 interface JwtPayload {
@@ -11,7 +11,7 @@ interface JwtPayload {
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: IUser;
     }
   }
 }
@@ -32,9 +32,10 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
 
     req.user = user;
     next();
-  } catch (err: any) {
-    if (err.name === 'JsonWebTokenError') return next(new AppError('Invalid token.', 401));
-    if (err.name === 'TokenExpiredError') return next(new AppError('Token expired. Please log in again.', 401));
+  } catch (err: unknown) {
+    const error = err as Error;
+    if (error.name === 'JsonWebTokenError') return next(new AppError('Invalid token.', 401));
+    if (error.name === 'TokenExpiredError') return next(new AppError('Token expired. Please log in again.', 401));
     next(err);
   }
 };

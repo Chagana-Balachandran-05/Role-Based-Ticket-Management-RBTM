@@ -1,4 +1,4 @@
-export const successResponse = (data: any, message?: string) => {
+export const successResponse = <T>(data: T, message?: string) => {
   return {
     success: true,
     data,
@@ -6,11 +6,10 @@ export const successResponse = (data: any, message?: string) => {
   };
 };
 
-export const errorResponse = (message: string, errors: any[] | null = null) => {
+export const errorResponse = (message: string, errors: unknown[] | null = null) => {
   return {
     success: false,
     message,
     ...(errors && { errors }),
   };
 };
-

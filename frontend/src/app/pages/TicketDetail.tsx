@@ -39,14 +39,14 @@ export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  
-  const { 
-    selectedTicket, 
-    detailLoading, 
-    commentLoading, 
-    statusLoading, 
-    assignLoading, 
-    error 
+
+  const {
+    selectedTicket,
+    detailLoading,
+    commentLoading,
+    statusLoading,
+    assignLoading,
+    error
   } = useAppSelector((s) => s.tickets);
   const { user } = useAppSelector((s) => s.auth);
   const { users } = useAppSelector((s) => s.users);

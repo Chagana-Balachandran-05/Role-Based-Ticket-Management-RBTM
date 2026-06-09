@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/User.model';
 import { AppError } from '../utils/AppError';
+import { RegisterUserDTO } from '../types/dtos';
 
 const signToken = (id: string, role: string): string => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET as string, {
@@ -8,7 +9,8 @@ const signToken = (id: string, role: string): string => {
   } as jwt.SignOptions);
 };
 
-export const registerUser = async (name: string, email: string, password: string, role?: string) => {
+export const registerUser = async (data: RegisterUserDTO) => {
+  const { name, email, password } = data;
   const existing = await UserModel.findOne({ email });
   if (existing) throw new AppError('Email already registered', 409);
 
@@ -16,7 +18,7 @@ export const registerUser = async (name: string, email: string, password: string
     name,
     email,
     password,
-    role: role || 'User',
+    role: 'User', // Forcibly set user role on registration
   });
 
   const token = signToken(user._id.toString(), user.role);

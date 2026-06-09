@@ -1,40 +1,30 @@
 import mongoose from 'mongoose';
-import TicketModel from '../models/Ticket.model';
-import UserModel from '../models/User.model';
+import TicketModel, { ITicket } from '../models/Ticket.model';
+import UserModel, { IUser } from '../models/User.model';
 import { AppError } from '../utils/AppError';
 import { generateTicketNumber } from '../utils/generateTicketNumber';
+import { CreateTicketDTO, UpdateTicketDTO, GetTicketsQueryDTO } from '../types/dtos';
 
-interface TicketQuery {
-  page?: number;
-  limit?: number;
-  status?: string;
-  priority?: string;
-  category?: string;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-const buildUserFilter = (user: any) => {
+const buildUserFilter = (user: IUser): mongoose.FilterQuery<ITicket> => {
   if (user.role === 'Admin') return {};
   if (user.role === 'Agent') return { assignedTo: user._id };
   return { createdBy: user._id };
 };
 
-export const createTicket = async (data: any, userId: string) => {
+export const createTicket = async (data: CreateTicketDTO, userId: string) => {
   const ticketNumber = await generateTicketNumber();
   const ticket = await TicketModel.create({
     ...data,
     ticketNumber,
     createdBy: userId,
     statusHistory: [
-      { status: 'Open', changedBy: userId, note: 'Ticket created', changedAt: new Date() },
+      { status: 'Open', changedBy: new mongoose.Types.ObjectId(userId), note: 'Ticket created', changedAt: new Date() },
     ],
   });
   return ticket.populate(['createdBy', 'assignedTo']);
 };
 
-export const getTickets = async (user: any, query: TicketQuery) => {
+export const getTickets = async (user: IUser, query: GetTicketsQueryDTO) => {
   const {
     page = 1,
     limit = 10,
@@ -46,20 +36,18 @@ export const getTickets = async (user: any, query: TicketQuery) => {
     sortOrder = 'desc',
   } = query;
 
-  const filter: any = buildUserFilter(user);
+  const filter: mongoose.FilterQuery<ITicket> = buildUserFilter(user);
   if (status) filter.status = status;
   if (priority) filter.priority = priority;
   if (category) filter.category = category;
+  
   if (search) {
-    filter.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
-      { ticketNumber: { $regex: search, $options: 'i' } },
-    ];
+    // MongoDB text index search
+    filter.$text = { $search: search };
   }
 
   const skip = (Number(page) - 1) * Number(limit);
-  const sort: any = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+  const sort: Record<string, 1 | -1> = { [sortBy as string]: sortOrder === 'asc' ? 1 : -1 };
 
   const [tickets, total] = await Promise.all([
     TicketModel.find(filter)
@@ -74,7 +62,7 @@ export const getTickets = async (user: any, query: TicketQuery) => {
   return { tickets, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) };
 };
 
-export const getTicketById = async (id: string, user: any) => {
+export const getTicketById = async (id: string, user: IUser) => {
   const ticket = await TicketModel.findById(id)
     .populate('createdBy', 'name email role')
     .populate('assignedTo', 'name email role')
@@ -93,21 +81,33 @@ export const getTicketById = async (id: string, user: any) => {
   return ticket;
 };
 
-export const updateTicket = async (id: string, data: any, userId: string) => {
+export const updateTicket = async (id: string, data: UpdateTicketDTO, user: IUser) => {
   const ticket = await TicketModel.findById(id);
   if (!ticket) throw new AppError('Ticket not found', 404);
 
-  if (data.status && data.status !== ticket.status) {
-    ticket.statusHistory.push({
-      status: data.status,
-      changedBy: new mongoose.Types.ObjectId(userId),
-      note: data.statusNote || `Status changed to ${data.status}`,
-      changedAt: new Date(),
-    });
+  // Strip status field entirely before updates are processed
+  const { status, ...allowedPayload } = data as any;
+
+  let allowedData: Partial<UpdateTicketDTO> = {};
+  if (user.role === 'Admin') {
+    // Admin can update any field except status (which is stripped above)
+    allowedData = { ...allowedPayload };
+  } else if (user.role === 'Agent') {
+    // Agents can only update title, description, priority, category
+    const agentAllowedFields: (keyof UpdateTicketDTO)[] = ['title', 'description', 'priority', 'category'];
+    for (const field of agentAllowedFields) {
+      if (field in allowedPayload) {
+        allowedData[field] = allowedPayload[field];
+      }
+    }
+  } else {
+    throw new AppError('Access denied', 403);
   }
 
-  delete data.statusNote;
-  Object.assign(ticket, data);
+  // Ensure statusNote or other custom fields are not applied to the ticket object
+  delete (allowedData as any).statusNote;
+
+  Object.assign(ticket, allowedData);
   await ticket.save();
 
   return ticket

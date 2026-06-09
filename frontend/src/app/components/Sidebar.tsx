@@ -1,14 +1,23 @@
-import { NavLink, useNavigate } from 'react-router';
-import { Home, Ticket, Users, LogOut, PlusCircle, FileText, MessageSquare } from 'lucide-react';
+import { NavLink, useNavigate, useMatch } from 'react-router';
+import { Home, Ticket, Users, LogOut, PlusCircle, FileText, MessageSquare, LucideIcon } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/slices/authSlice';
+
+interface MenuItem {
+  icon: LucideIcon;
+  label: string;
+  path: string;
+  end?: boolean;
+}
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
+  const agentTicketMatch = useMatch('/agent/:id') ?? useMatch('/agent/:id/comments');
+  const currentAgentTicketId = agentTicketMatch?.params?.id ?? null;
 
-  const getMenuItems = () => {
+  const getMenuItems = (): MenuItem[] => {
     if (user?.role === 'Admin') {
       return [
         { icon: Home, label: 'Dashboard', path: '/dashboard' },
@@ -17,10 +26,20 @@ export default function Sidebar() {
       ];
     } else if (user?.role === 'Agent') {
       return [
-        { icon: Home, label: 'Dashboard', path: '/dashboard' },
-        { icon: Ticket, label: 'Assigned Tickets', path: '/tickets' },
-        { icon: FileText, label: 'Ticket Details', path: '/tickets' },
-        { icon: MessageSquare, label: 'Comments', path: '/tickets#comments' },
+        { icon: Home, label: 'Dashboard', path: '/dashboard', end: false },
+        { icon: Ticket, label: 'Assigned Tickets', path: '/agent', end: true },
+        {
+          icon: FileText,
+          label: 'Ticket Details',
+          path: currentAgentTicketId ? `/agent/${currentAgentTicketId}` : '/agent',
+          end: true,
+        },
+        {
+          icon: MessageSquare,
+          label: 'Comments',
+          path: currentAgentTicketId ? `/agent/${currentAgentTicketId}/comments` : '/agent',
+          end: true,
+        },
       ];
     } else {
       return [
@@ -53,14 +72,14 @@ export default function Sidebar() {
           const Icon = item.icon;
           return (
             <NavLink
-              key={item.path}
+              key={item.label}
               to={item.path}
+              end={item.end}
               title={item.label}
               className={({ isActive }) =>
-                `w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                  isActive
-                    ? 'bg-[#10b981] text-white shadow-md'
-                    : 'bg-[rgba(255,255,255,0.2)] text-[#3C4A42] hover:bg-[rgba(255,255,255,0.3)]'
+                `w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive
+                  ? 'bg-[#10b981] text-white shadow-md'
+                  : 'bg-[rgba(255,255,255,0.2)] text-[#3C4A42] hover:bg-[rgba(255,255,255,0.3)]'
                 }`
               }
             >

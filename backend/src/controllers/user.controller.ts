@@ -28,7 +28,7 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    if (req.user._id.toString() === id) {
+    if (req.user!._id.toString() === id) {
       throw new AppError('Cannot delete self', 400);
     }
     await UserService.deleteUser(id);
@@ -59,14 +59,14 @@ export const getAgents = async (req: Request, res: Response, next: NextFunction)
 
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await UserService.updateProfile(req.user._id.toString(), req.body);
+    const user = await UserService.updateProfile(req.user!._id.toString(), req.body);
     res.status(200).json(successResponse(user, 'Profile updated'));
   } catch (err) { next(err); }
 };
 
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await UserService.changePassword(req.user._id.toString(), req.body.currentPassword, req.body.newPassword);
+    await UserService.changePassword(req.user!._id.toString(), req.body.currentPassword, req.body.newPassword);
     res.status(200).json(successResponse({}, 'Password changed successfully'));
   } catch (err) { next(err); }
 };

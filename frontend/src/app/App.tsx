@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { Toaster } from 'sonner';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -7,12 +8,15 @@ import TicketDetail from './pages/TicketDetail';
 import CreateTicket from './pages/CreateTicket';
 import EditTicket from './pages/EditTicket';
 import UserManagement from './pages/UserManagement';
+import AgentWorkspace from './pages/AgentWorkspace';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <>
+      <Toaster richColors position="top-right" />
+      <BrowserRouter>
+        <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -64,7 +68,32 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/agent"
+          element={
+            <ProtectedRoute allowedRoles={['Agent']}>
+              <AgentWorkspace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/agent/:id"
+          element={
+            <ProtectedRoute allowedRoles={['Agent']}>
+              <AgentWorkspace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/agent/:id/comments"
+          element={
+            <ProtectedRoute allowedRoles={['Agent']}>
+              <AgentWorkspace />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
+    </>
   );
 }

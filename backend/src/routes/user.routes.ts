@@ -5,9 +5,11 @@ import { authorize } from '../middleware/role.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { roleUpdateValidator } from '../validators/user.validator';
 import { body } from 'express-validator';
+import { generalLimiter } from '../middleware/rateLimit.middleware';
 
 const router = Router();
 router.use(protect);
+router.use(generalLimiter);
 
 router.patch('/me/profile', UserController.updateProfile);
 router.patch('/me/password', [

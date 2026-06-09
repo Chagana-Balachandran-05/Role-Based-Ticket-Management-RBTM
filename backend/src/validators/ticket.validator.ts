@@ -18,7 +18,6 @@ export const updateTicketValidator = [
     .optional()
     .isIn(['Bug', 'Feature Request', 'Technical Issue', 'Payment Issue', 'Account Issue', 'Other']),
   body('priority').optional().isIn(['Low', 'Medium', 'High', 'Urgent']),
-  body('status').optional().isIn(['Open', 'In Progress', 'Resolved', 'Closed']),
 ];
 
 export const statusUpdateValidator = [

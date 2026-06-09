@@ -3,6 +3,7 @@ import * as TicketController from '../controllers/ticket.controller';
 import { protect } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { validate } from '../middleware/validate.middleware';
+import { generalLimiter } from '../middleware/rateLimit.middleware';
 import {
   createTicketValidator, updateTicketValidator,
   statusUpdateValidator, addCommentValidator, assignValidator,
@@ -10,6 +11,7 @@ import {
 
 const router = Router();
 router.use(protect);
+router.use(generalLimiter);
 
 router.post('/', authorize('Admin', 'User'), createTicketValidator, validate, TicketController.createTicket);
 router.get('/', TicketController.getTickets);

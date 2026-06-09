@@ -4,7 +4,6 @@ export const registerValidator = [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').optional().isIn(['Admin', 'Agent', 'User']).withMessage('Invalid role'),
 ];
 
 export const loginValidator = [

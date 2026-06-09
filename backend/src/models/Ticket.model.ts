@@ -40,7 +40,7 @@ const CommentSchema = new Schema<IComment>(
 
 const StatusHistorySchema = new Schema<IStatusHistory>(
   {
-    status: { type: String, required: true },
+    status: { type: String, required: true, enum: ['Open', 'In Progress', 'Resolved', 'Closed'] },
     changedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     note: { type: String, default: '' },
     changedAt: { type: Date, default: Date.now },
@@ -75,5 +75,7 @@ const TicketSchema = new Schema<ITicket>(
   },
   { timestamps: true }
 );
+
+TicketSchema.index({ title: 'text', description: 'text', ticketNumber: 'text' });
 
 export default mongoose.model<ITicket>('Ticket', TicketSchema);

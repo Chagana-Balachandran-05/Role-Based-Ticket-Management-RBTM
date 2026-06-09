@@ -1,6 +1,7 @@
 import TicketModel from '../models/Ticket.model';
+import { IUser } from '../models/User.model';
 
-export const getDashboardStats = async (user: any) => {
+export const getDashboardStats = async (user: IUser) => {
   const filter = user.role === 'Admin' ? {} 
     : user.role === 'Agent' ? { assignedTo: user._id } 
     : { createdBy: user._id };
@@ -16,7 +17,36 @@ export const getDashboardStats = async (user: any) => {
     ]),
   ]);
 
-  const getCount = (arr: any[], id: string) => arr.find(x => x._id === id)?.count || 0;
+  const getCount = (arr: Array<{ _id: string; count: number }>, id: string) => 
+    arr.find(x => x._id === id)?.count || 0;
+
+  let extraStats = {};
+  if (user.role === 'Admin') {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const startOfWeek = new Date();
+    const day = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - day);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [createdToday, createdThisWeek, unassignedOpen, overdue] = await Promise.all([
+      TicketModel.countDocuments({ createdAt: { $gte: startOfToday } }),
+      TicketModel.countDocuments({ createdAt: { $gte: startOfWeek } }),
+      TicketModel.countDocuments({ assignedTo: null, status: { $ne: 'Closed' } }),
+      TicketModel.countDocuments({ status: { $in: ['Open', 'In Progress'] }, createdAt: { $lt: sevenDaysAgo } }),
+    ]);
+
+    extraStats = {
+      createdToday,
+      createdThisWeek,
+      unassignedOpen,
+      overdue,
+    };
+  }
 
   return {
     total: await TicketModel.countDocuments(filter),
@@ -24,7 +54,7 @@ export const getDashboardStats = async (user: any) => {
     inProgress: getCount(statusCounts, 'In Progress'),
     resolved: getCount(statusCounts, 'Resolved'),
     closed: getCount(statusCounts, 'Closed'),
-    byPriority: priorityCounts,
+    byPriority: priorityCounts as Array<{ _id: string; count: number }>,
+    ...extraStats,
   };
 };
-
