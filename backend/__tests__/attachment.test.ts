@@ -1,15 +1,10 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import fs from 'fs';
-import path from 'path';
 import mongoose from 'mongoose';
 import app from '../src/app';
 import UserModel from '../src/models/User.model';
 import TicketModel from '../src/models/Ticket.model';
-import AuditLogModel from '../src/models/AuditLog.model';
-import IdempotencyModel from '../src/models/Idempotency.model';
 import { uploadStream, deleteFromCloudinary } from '../src/config/cloudinary';
-import { initializeQueue, getQueue } from '../src/services/queue/queueFactory';
 
 // Mock Cloudinary config and uploader methods
 jest.mock('../src/config/cloudinary', () => ({
@@ -17,9 +12,6 @@ jest.mock('../src/config/cloudinary', () => ({
   deleteFromCloudinary: jest.fn(),
 }));
 
-beforeAll(async () => {
-  await initializeQueue();
-});
 
 const signTestToken = (id: string, role: string) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
@@ -74,26 +66,16 @@ describe('File Attachments System (Enterprise Grade)', () => {
     });
   });
 
-  afterEach(async () => {
-    try {
-      const queue = getQueue();
-      if (queue && queue.drain) {
-        await queue.drain();
-      }
-    } catch (e) {
-      // Ignore
-    }
-  });
 
-  describe('POST /api/v1/tickets - Create with files', () => {
-    it('should successfully create ticket and schedule uploads', async () => {
+  describe('POST /api/tickets - Create with files', () => {
+    it('should successfully create ticket with uploaded attachments', async () => {
       (uploadStream as jest.Mock).mockResolvedValue({
         secure_url: 'https://cloudinary/image.png',
         public_id: 'cloudinary_public_id',
       });
 
       const res = await request(app)
-        .post('/api/v1/tickets')
+        .post('/api/tickets')
         .set('Authorization', `Bearer ${tokenUser}`)
         .field('title', 'Ticket with file')
         .field('description', 'Test body')
@@ -107,45 +89,14 @@ describe('File Attachments System (Enterprise Grade)', () => {
       
       const attachment = res.body.data.attachments[0];
       expect(attachment.originalName).toBe('hello.txt');
-      expect(attachment.status).toBe('pending');
-    });
-
-    it('should successfully process background upload and update status to uploaded', async () => {
-      (uploadStream as jest.Mock).mockResolvedValue({
-        secure_url: 'https://cloudinary/image.png',
-        public_id: 'cloudinary_public_id',
-      });
-
-      const res = await request(app)
-        .post('/api/v1/tickets')
-        .set('Authorization', `Bearer ${tokenUser}`)
-        .field('title', 'Ticket for processing check')
-        .field('description', 'Test body')
-        .field('category', 'Bug')
-        .field('priority', 'Low')
-        .attach('attachments', Buffer.from('hello text content'), 'hello-process.txt');
-
-      expect(res.status).toBe(201);
-      const ticketId = res.body.data._id;
-      const attachmentId = res.body.data.attachments[0]._id;
-
-      // Wait for background worker processing to finish
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // Fetch ticket from database and verify status has updated
-      const updatedTicket = await TicketModel.findById(ticketId);
-      expect(updatedTicket).toBeTruthy();
-      const attachment = updatedTicket!.attachments.find((a) => a._id.toString() === attachmentId);
-      expect(attachment).toBeTruthy();
-      expect(attachment!.status).toBe('uploaded');
-      expect(attachment!.url).toBe('https://cloudinary/image.png');
-      expect(attachment!.publicId).toBe('cloudinary_public_id');
-      expect(attachment!.tempPath).toBe('');
+      expect(attachment.status).toBe('uploaded');
+      expect(attachment.url).toBeTruthy();
+      expect(attachment.publicId).toBeTruthy();
     });
 
     it('should reject invalid file extensions/types early', async () => {
       const res = await request(app)
-        .post('/api/v1/tickets')
+        .post('/api/tickets')
         .set('Authorization', `Bearer ${tokenUser}`)
         .field('title', 'Invalid file test')
         .field('description', 'Test body')
@@ -156,38 +107,6 @@ describe('File Attachments System (Enterprise Grade)', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
       expect(res.body.message).toContain('Only images, PDFs, and text files are allowed');
-    });
-  });
-
-  describe('Idempotency Checks', () => {
-    it('should return identical cached response on duplicate request keys', async () => {
-      const idempotencyKey = 'key-12345';
-
-      // First request
-      const res1 = await request(app)
-        .post('/api/v1/tickets')
-        .set('Authorization', `Bearer ${tokenUser}`)
-        .set('Idempotency-Key', idempotencyKey)
-        .field('title', 'Unique Ticket')
-        .field('description', 'First execution')
-        .field('category', 'Bug')
-        .field('priority', 'Low');
-
-      expect(res1.status).toBe(201);
-
-      // Second request with same key
-      const res2 = await request(app)
-        .post('/api/v1/tickets')
-        .set('Authorization', `Bearer ${tokenUser}`)
-        .set('Idempotency-Key', idempotencyKey)
-        .field('title', 'Unique Ticket')
-        .field('description', 'Second execution')
-        .field('category', 'Bug')
-        .field('priority', 'Low');
-
-      expect(res2.status).toBe(200); // Idempotency returns 200 Cached
-      expect(res2.body.data._id).toBe(res1.body.data._id);
-      expect(res2.body.data.title).toBe('Unique Ticket');
     });
   });
 
@@ -211,6 +130,11 @@ describe('File Attachments System (Enterprise Grade)', () => {
     });
 
     it('should allow upload to agent if assigned to the ticket', async () => {
+      (uploadStream as jest.Mock).mockResolvedValue({
+        secure_url: 'https://cloudinary/agent-upload.png',
+        public_id: 'agent_public_id',
+      });
+
       ticket.assignedTo = agent._id;
       await ticket.save();
 
@@ -233,6 +157,12 @@ describe('File Attachments System (Enterprise Grade)', () => {
     });
 
     it('should always allow admin to upload and delete attachments', async () => {
+      (uploadStream as jest.Mock).mockResolvedValue({
+        secure_url: 'https://cloudinary/admin-upload.png',
+        public_id: 'admin_public_id',
+      });
+      (deleteFromCloudinary as jest.Mock).mockResolvedValue({ result: 'ok' });
+
       const resUpload = await request(app)
         .post(`/api/v1/tickets/${ticket._id}/attachments`)
         .set('Authorization', `Bearer ${tokenAdmin}`)

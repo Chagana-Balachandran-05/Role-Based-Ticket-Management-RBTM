@@ -38,14 +38,14 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
 
 export const updateRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await UserService.updateUserRole(req.params.id, req.body.role);
+    const user = await UserService.updateUserRole(req.params.id, req.body.role, req.user!._id.toString());
     res.status(200).json(successResponse(user, 'Role updated'));
   } catch (err) { next(err); }
 };
 
 export const updateStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await UserService.updateUserStatus(req.params.id, req.body.isActive);
+    const user = await UserService.updateUserStatus(req.params.id, req.body.isActive, req.user!._id.toString());
     res.status(200).json(successResponse(user, 'Status updated'));
   } catch (err) { next(err); }
 };

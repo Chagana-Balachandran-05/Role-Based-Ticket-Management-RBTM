@@ -22,10 +22,9 @@ export interface IAttachment {
   publicId: string;
   mimeType: string;
   size: number;
-  fileHash: string;
+  fileHash?: string;
   uploadedBy: mongoose.Types.ObjectId;
   status: 'pending' | 'uploaded' | 'failed';
-  tempPath?: string; // For worker queue recovery
   uploadedAt: Date;
 }
 
@@ -72,10 +71,9 @@ const AttachmentSchema = new Schema<IAttachment>(
     publicId: { type: String, default: '' },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
-    fileHash: { type: String, required: true },
+    fileHash: { type: String, default: '' },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: { type: String, enum: ['pending', 'uploaded', 'failed'], default: 'pending' },
-    tempPath: { type: String, default: '' },
     uploadedAt: { type: Date, default: Date.now }
   }
 );

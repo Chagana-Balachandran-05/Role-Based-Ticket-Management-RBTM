@@ -4,6 +4,8 @@ import { protect } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { generalLimiter } from '../middleware/rateLimit.middleware';
+import { uploadLimiter } from '../middleware/throttle.middleware';
+import { handleAttachmentUpload } from '../middleware/multer.config';
 import {
   createTicketValidator, updateTicketValidator,
   statusUpdateValidator, addCommentValidator, assignValidator,
@@ -13,7 +15,7 @@ const router = Router();
 router.use(protect);
 router.use(generalLimiter);
 
-router.post('/', authorize('Admin', 'User'), createTicketValidator, validate, TicketController.createTicket);
+router.post('/', authorize('Admin', 'User'), uploadLimiter, handleAttachmentUpload('attachments'), createTicketValidator, validate, TicketController.createTicket);
 router.get('/', TicketController.getTickets);
 router.get('/:id', TicketController.getTicket);
 router.put('/:id', authorize('Admin', 'Agent'), updateTicketValidator, validate, TicketController.updateTicket);

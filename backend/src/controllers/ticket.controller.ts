@@ -3,12 +3,11 @@ import * as TicketService from '../services/ticket.service';
 import { successResponse } from '../utils/apiResponse';
 import { AppError } from '../utils/AppError';
 import { registerSseClient } from '../services/sse';
-import { getAttachmentMetrics } from '../services/metricsCollector';
 
 export const createTicket = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const files = (req.files as any[]) || [];
-    const ticket = await TicketService.createTicketWithFiles(req.body, req.user!._id.toString(), files);
+    const files = (req.files as Express.Multer.File[]) || [];
+    const ticket = await TicketService.createTicket(req.body, req.user!._id.toString(), files);
     res.status(201).json(successResponse(ticket, 'Ticket created'));
   } catch (err) { next(err); }
 };
@@ -61,21 +60,21 @@ export const addComment = async (req: Request, res: Response, next: NextFunction
 
 export const deleteTicket = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await TicketService.deleteTicket(req.params.id);
+    await TicketService.deleteTicket(req.params.id, req.user!);
     res.status(200).json(successResponse({}, 'Ticket deleted'));
   } catch (err) { next(err); }
 };
 
 export const addAttachments = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const files = (req.files as any[]) || [];
+    const files = (req.files as Express.Multer.File[]) || [];
     const ticket = await TicketService.addAttachmentsToTicket(
       req.params.id,
       req.user!._id.toString(),
       files,
       req.user!
     );
-    res.status(200).json(successResponse(ticket, 'Attachments queued for upload'));
+    res.status(200).json(successResponse(ticket, 'Attachments uploaded successfully'));
   } catch (err) { next(err); }
 };
 
@@ -107,11 +106,3 @@ export const streamAttachments = async (req: Request, res: Response, next: NextF
     next(err);
   }
 };
-
-export const getMetrics = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const metrics = await getAttachmentMetrics();
-    res.status(200).json(successResponse(metrics, 'Attachment metrics fetched'));
-  } catch (err) { next(err); }
-};
-

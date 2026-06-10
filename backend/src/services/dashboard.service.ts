@@ -1,4 +1,5 @@
 import TicketModel from '../models/Ticket.model';
+import AuditLogModel from '../models/AuditLog.model';
 import { IUser } from '../models/User.model';
 
 export const getDashboardStats = async (user: IUser) => {
@@ -20,7 +21,7 @@ export const getDashboardStats = async (user: IUser) => {
   const getCount = (arr: Array<{ _id: string; count: number }>, id: string) => 
     arr.find(x => x._id === id)?.count || 0;
 
-  let extraStats = {};
+  let extraStats: Record<string, any> = {};
   if (user.role === 'Admin') {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -33,11 +34,15 @@ export const getDashboardStats = async (user: IUser) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const [createdToday, createdThisWeek, unassignedOpen, overdue] = await Promise.all([
+    const [createdToday, createdThisWeek, unassignedOpen, overdue, recentActivity] = await Promise.all([
       TicketModel.countDocuments({ createdAt: { $gte: startOfToday } }),
       TicketModel.countDocuments({ createdAt: { $gte: startOfWeek } }),
       TicketModel.countDocuments({ assignedTo: null, status: { $ne: 'Closed' } }),
       TicketModel.countDocuments({ status: { $in: ['Open', 'In Progress'] }, createdAt: { $lt: sevenDaysAgo } }),
+      AuditLogModel.find()
+        .populate('performedBy', 'name email')
+        .sort({ createdAt: -1 })
+        .limit(10),
     ]);
 
     extraStats = {
@@ -45,6 +50,7 @@ export const getDashboardStats = async (user: IUser) => {
       createdThisWeek,
       unassignedOpen,
       overdue,
+      recentActivity,
     };
   }
 

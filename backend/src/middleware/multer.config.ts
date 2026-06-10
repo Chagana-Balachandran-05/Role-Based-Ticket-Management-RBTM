@@ -1,23 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { AppError } from '../utils/AppError';
 
-const tempDir = path.join(process.cwd(), 'uploads', 'tmp');
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, tempDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+const storage = multer.memoryStorage();
 
 const allowedMimeTypes = [
   'image/jpeg',
@@ -31,7 +16,9 @@ const allowedMimeTypes = [
 const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.txt'];
 
 const fileFilter = (req: any, file: any, cb: any) => {
-  const ext = path.extname(file.originalname).toLowerCase();
+  const originalName = file.originalname;
+  const dotIndex = originalName.lastIndexOf('.');
+  const ext = dotIndex !== -1 ? originalName.substring(dotIndex).toLowerCase() : '';
   const mimeType = file.mimetype;
 
   if (!allowedMimeTypes.includes(mimeType) || !allowedExtensions.includes(ext)) {

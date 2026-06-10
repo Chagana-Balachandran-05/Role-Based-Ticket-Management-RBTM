@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError';
 import { errorResponse } from '../utils/apiResponse';
+import { logger } from '../utils/winston';
 
 interface AppErrorDetails extends Error {
   statusCode?: number;
@@ -15,7 +16,7 @@ export const globalErrorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  console.error('ERROR:', err);
+  logger.error('Unhandled error:', { message: err.message, stack: err.stack });
 
   let statusCode = 500;
   let message = 'Internal server error';

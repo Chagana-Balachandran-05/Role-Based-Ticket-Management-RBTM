@@ -9,6 +9,7 @@ import CreateTicket from './pages/CreateTicket';
 import EditTicket from './pages/EditTicket';
 import UserManagement from './pages/UserManagement';
 import AgentWorkspace from './pages/AgentWorkspace';
+import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
@@ -92,6 +93,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
     </>

@@ -1,15 +1,13 @@
 import mongoose from 'mongoose';
-import TicketModel, { ITicket } from '../models/Ticket.model';
+import TicketModel, { ITicket, IComment } from '../models/Ticket.model';
 import UserModel, { IUser } from '../models/User.model';
 import { AppError } from '../utils/AppError';
 import { generateTicketNumber } from '../utils/generateTicketNumber';
 import { CreateTicketDTO, UpdateTicketDTO, GetTicketsQueryDTO } from '../types/dtos';
-import fs from 'fs';
-import { calculateFileHash } from '../utils/hash';
-import { getQueue } from './queue/queueFactory';
-import AuditLogModel from '../models/AuditLog.model';
-import { deleteFromCloudinary } from '../config/cloudinary';
+import { uploadStream, deleteFromCloudinary } from '../config/cloudinary';
 import { logger } from '../utils/winston';
+import { emitAttachmentUpdate } from './sse';
+import { createAuditLog } from './auditLog.service';
 
 const buildUserFilter = (user: IUser): mongoose.FilterQuery<ITicket> => {
   if (user.role === 'Admin') return {};
@@ -17,8 +15,36 @@ const buildUserFilter = (user: IUser): mongoose.FilterQuery<ITicket> => {
   return { createdBy: user._id };
 };
 
-export const createTicket = async (data: CreateTicketDTO, userId: string) => {
+const uploadFilesToCloudinary = async (files: Express.Multer.File[], userId: string) => {
+  const attachments: any[] = [];
+
+  for (const file of files) {
+    try {
+      const result = await uploadStream(file.buffer, 'tickets');
+      attachments.push({
+        fileName: file.originalname,
+        originalName: file.originalname,
+        url: result.secure_url,
+        publicId: result.public_id,
+        mimeType: file.mimetype,
+        size: file.size,
+        uploadedBy: new mongoose.Types.ObjectId(userId),
+        status: 'uploaded',
+        uploadedAt: new Date(),
+      });
+    } catch (err) {
+      logger.error(`Failed to upload file ${file.originalname} to Cloudinary:`, err);
+    }
+  }
+
+  return attachments;
+};
+
+export const createTicket = async (data: CreateTicketDTO, userId: string, files: Express.Multer.File[] = []) => {
   const ticketNumber = await generateTicketNumber();
+
+  const attachments = files.length > 0 ? await uploadFilesToCloudinary(files, userId) : [];
+
   const ticket = await TicketModel.create({
     ...data,
     ticketNumber,
@@ -26,7 +52,27 @@ export const createTicket = async (data: CreateTicketDTO, userId: string) => {
     statusHistory: [
       { status: 'Open', changedBy: new mongoose.Types.ObjectId(userId), note: 'Ticket created', changedAt: new Date() },
     ],
+    attachments,
   });
+
+  // Emit SSE for each uploaded attachment
+  for (const att of ticket.attachments) {
+    emitAttachmentUpdate(ticket._id.toString(), {
+      attachmentId: att._id.toString(),
+      status: att.status,
+      url: att.url,
+      fileName: att.originalName,
+    });
+  }
+
+  await createAuditLog({
+    action: 'TICKET_CREATED',
+    performedBy: userId,
+    targetType: 'Ticket',
+    targetId: ticket._id.toString(),
+    metadata: { ticketNumber: ticket.ticketNumber, title: ticket.title },
+  });
+
   return ticket.populate(['createdBy', 'assignedTo']);
 };
 
@@ -91,30 +137,37 @@ export const updateTicket = async (id: string, data: UpdateTicketDTO, user: IUse
   const ticket = await TicketModel.findById(id);
   if (!ticket) throw new AppError('Ticket not found', 404);
 
-  // Strip status field entirely before updates are processed
-  const { status, ...allowedPayload } = data as any;
-
+  // Strip status field — status updates go through a separate endpoint
+  const { title, description, category, priority, assignedTo } = data;
+  
   let allowedData: Partial<UpdateTicketDTO> = {};
   if (user.role === 'Admin') {
-    // Admin can update any field except status (which is stripped above)
-    allowedData = { ...allowedPayload };
+    // Admin can update any field except status
+    if (title !== undefined) allowedData.title = title;
+    if (description !== undefined) allowedData.description = description;
+    if (category !== undefined) allowedData.category = category;
+    if (priority !== undefined) allowedData.priority = priority;
+    if (assignedTo !== undefined) allowedData.assignedTo = assignedTo;
   } else if (user.role === 'Agent') {
     // Agents can only update title, description, priority, category
-    const agentAllowedFields: (keyof UpdateTicketDTO)[] = ['title', 'description', 'priority', 'category'];
-    for (const field of agentAllowedFields) {
-      if (field in allowedPayload) {
-        allowedData[field] = allowedPayload[field];
-      }
-    }
+    if (title !== undefined) allowedData.title = title;
+    if (description !== undefined) allowedData.description = description;
+    if (priority !== undefined) allowedData.priority = priority;
+    if (category !== undefined) allowedData.category = category;
   } else {
     throw new AppError('Access denied', 403);
   }
 
-  // Ensure statusNote or other custom fields are not applied to the ticket object
-  delete (allowedData as any).statusNote;
-
   Object.assign(ticket, allowedData);
   await ticket.save();
+
+  await createAuditLog({
+    action: 'TICKET_UPDATED',
+    performedBy: user._id.toString(),
+    targetType: 'Ticket',
+    targetId: id,
+    metadata: { ticketNumber: ticket.ticketNumber, updatedFields: Object.keys(allowedData) },
+  });
 
   return ticket
     .populate('createdBy', 'name email')
@@ -125,14 +178,26 @@ export const updateTicketStatus = async (id: string, status: string, note: strin
   const ticket = await TicketModel.findById(id);
   if (!ticket) throw new AppError('Ticket not found', 404);
 
+  const previousStatus = ticket.status;
+
   ticket.statusHistory.push({
     status,
     changedBy: new mongoose.Types.ObjectId(userId),
     note: note || `Status updated to ${status}`,
     changedAt: new Date(),
   });
-  ticket.status = status as any;
+  ticket.status = status as ITicket['status'];
   await ticket.save();
+
+  await createAuditLog({
+    action: 'STATUS_CHANGED',
+    performedBy: userId,
+    targetType: 'Ticket',
+    targetId: id,
+    changes: { from: previousStatus, to: status },
+    metadata: { ticketNumber: ticket.ticketNumber },
+  });
+
   return TicketModel.findById(ticket._id)
     .populate('createdBy', 'name email role')
     .populate('assignedTo', 'name email role')
@@ -156,6 +221,15 @@ export const assignTicket = async (ticketId: string, assignedTo: string, userId:
     changedAt: new Date(),
   });
   await ticket.save();
+
+  await createAuditLog({
+    action: 'TICKET_ASSIGNED',
+    performedBy: userId,
+    targetType: 'Ticket',
+    targetId: ticketId,
+    metadata: { ticketNumber: ticket.ticketNumber, assignedToName: agent.name, assignedToId: assignedTo },
+  });
+
   return ticket.populate('assignedTo', 'name email');
 };
 
@@ -173,67 +247,41 @@ export const addComment = async (ticketId: string, text: string, userId: string,
   ticket.comments.push({
     text,
     author: new mongoose.Types.ObjectId(userId),
-  } as any);
+  } as IComment);
   await ticket.save();
+
+  await createAuditLog({
+    action: 'COMMENT_ADDED',
+    performedBy: userId,
+    targetType: 'Ticket',
+    targetId: ticketId,
+    metadata: { ticketNumber: ticket.ticketNumber },
+  });
+
   return ticket.populate('comments.author', 'name email role');
 };
 
-export const deleteTicket = async (id: string) => {
-  const ticket = await TicketModel.findByIdAndDelete(id);
+export const deleteTicket = async (id: string, user: IUser) => {
+  if (user.role !== 'Admin') {
+    throw new AppError('Access denied', 403);
+  }
+
+  // Fetch before deleting to capture metadata
+  const ticket = await TicketModel.findById(id);
   if (!ticket) throw new AppError('Ticket not found', 404);
-};
 
-export const createTicketWithFiles = async (data: any, userId: string, files: any[]) => {
-  const ticketNumber = await generateTicketNumber();
+  await TicketModel.findByIdAndDelete(id);
 
-  const ticket = new TicketModel({
-    ...data,
-    ticketNumber,
-    createdBy: new mongoose.Types.ObjectId(userId),
-    statusHistory: [
-      { status: 'Open', changedBy: new mongoose.Types.ObjectId(userId), note: 'Ticket created', changedAt: new Date() },
-    ],
-    attachments: [],
+  await createAuditLog({
+    action: 'TICKET_DELETED',
+    performedBy: user._id.toString(),
+    targetType: 'Ticket',
+    targetId: id,
+    metadata: { ticketNumber: ticket.ticketNumber, title: ticket.title },
   });
-
-  const attachmentIds: mongoose.Types.ObjectId[] = [];
-
-  if (files && files.length > 0) {
-    for (const file of files) {
-      const fileHash = await calculateFileHash(file.path);
-      const attachmentId = new mongoose.Types.ObjectId();
-      attachmentIds.push(attachmentId);
-
-      ticket.attachments.push({
-        _id: attachmentId,
-        fileName: file.filename,
-        originalName: file.originalname,
-        url: '',
-        publicId: '',
-        mimeType: file.mimetype,
-        size: file.size,
-        fileHash,
-        uploadedBy: new mongoose.Types.ObjectId(userId),
-        status: 'pending',
-        tempPath: file.path,
-        uploadedAt: new Date(),
-      });
-    }
-  }
-
-  await ticket.save();
-
-  if (attachmentIds.length > 0) {
-    const queue = getQueue();
-    for (const attachmentId of attachmentIds) {
-      await queue.addJob(ticket._id.toString(), attachmentId.toString());
-    }
-  }
-
-  return ticket.populate(['createdBy', 'assignedTo']);
 };
 
-export const addAttachmentsToTicket = async (ticketId: string, userId: string, files: any[], user: any) => {
+export const addAttachmentsToTicket = async (ticketId: string, userId: string, files: Express.Multer.File[], user: IUser) => {
   const ticket = await TicketModel.findById(ticketId);
   if (!ticket) throw new AppError('Ticket not found', 404);
 
@@ -244,44 +292,36 @@ export const addAttachmentsToTicket = async (ticketId: string, userId: string, f
     throw new AppError('Access denied. You do not own this ticket.', 403);
   }
 
-  const attachmentIds: mongoose.Types.ObjectId[] = [];
+  const uploaded = await uploadFilesToCloudinary(files, userId);
 
-  if (files && files.length > 0) {
-    for (const file of files) {
-      const fileHash = await calculateFileHash(file.path);
-      const attachmentId = new mongoose.Types.ObjectId();
-      attachmentIds.push(attachmentId);
-
-      ticket.attachments.push({
-        _id: attachmentId,
-        fileName: file.filename,
-        originalName: file.originalname,
-        url: '',
-        publicId: '',
-        mimeType: file.mimetype,
-        size: file.size,
-        fileHash,
-        uploadedBy: new mongoose.Types.ObjectId(userId),
-        status: 'pending',
-        tempPath: file.path,
-        uploadedAt: new Date(),
-      });
-    }
+  for (const att of uploaded) {
+    ticket.attachments.push(att);
   }
 
   await ticket.save();
 
-  if (attachmentIds.length > 0) {
-    const queue = getQueue();
-    for (const attachmentId of attachmentIds) {
-      await queue.addJob(ticket._id.toString(), attachmentId.toString());
-    }
+  // Emit SSE and audit log for each uploaded attachment
+  for (const att of ticket.attachments.slice(-uploaded.length)) {
+    emitAttachmentUpdate(ticketId, {
+      attachmentId: att._id.toString(),
+      status: att.status,
+      url: att.url,
+      fileName: att.originalName,
+    });
+
+    await createAuditLog({
+      action: 'ATTACHMENT_UPLOADED',
+      performedBy: userId,
+      targetType: 'Attachment',
+      targetId: ticket._id.toString(),
+      metadata: { ticketNumber: ticket.ticketNumber, fileName: att.originalName, fileSize: att.size },
+    });
   }
 
   return ticket;
 };
 
-export const deleteAttachmentFromTicket = async (ticketId: string, attachmentId: string, userId: string, user: any) => {
+export const deleteAttachmentFromTicket = async (ticketId: string, attachmentId: string, userId: string, user: IUser) => {
   const ticket = await TicketModel.findById(ticketId);
   if (!ticket) throw new AppError('Ticket not found', 404);
 
@@ -297,7 +337,7 @@ export const deleteAttachmentFromTicket = async (ticketId: string, attachmentId:
 
   const attachment = ticket.attachments[attachmentIndex];
 
-  if (attachment.status === 'uploaded' && attachment.publicId) {
+  if (attachment.publicId) {
     try {
       await deleteFromCloudinary(attachment.publicId);
     } catch (err) {
@@ -305,22 +345,15 @@ export const deleteAttachmentFromTicket = async (ticketId: string, attachmentId:
     }
   }
 
-  if (attachment.status === 'pending' && attachment.tempPath && fs.existsSync(attachment.tempPath)) {
-    try {
-      fs.unlinkSync(attachment.tempPath);
-    } catch (err) {
-      logger.error(`Failed to delete temp file ${attachment.tempPath}:`, err);
-    }
-  }
-
   ticket.attachments.splice(attachmentIndex, 1);
   await ticket.save();
 
-  await AuditLogModel.create({
+  await createAuditLog({
     action: 'ATTACHMENT_DELETED',
-    ticketId: new mongoose.Types.ObjectId(ticketId),
-    userId: new mongoose.Types.ObjectId(userId),
-    details: { fileName: attachment.originalName },
+    performedBy: userId,
+    targetType: 'Attachment',
+    targetId: ticketId,
+    metadata: { ticketNumber: ticket.ticketNumber, fileName: attachment.originalName },
   });
 
   return ticket;

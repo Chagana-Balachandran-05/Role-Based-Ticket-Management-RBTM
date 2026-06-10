@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import UserModel, { IUser } from '../models/User.model';
 import { AppError } from '../utils/AppError';
 import { GetAllUsersQueryDTO, UpdateUserDTO, UpdateProfileDTO } from '../types/dtos';
+import { createAuditLog } from './auditLog.service';
 
 export const getAllUsers = async (query: GetAllUsersQueryDTO) => {
   const { search, role, page = 1, limit = 10 } = query;
@@ -54,15 +55,47 @@ export const deleteUser = async (id: string) => {
   if (!user) throw new AppError('User not found', 404);
 };
 
-export const updateUserRole = async (id: string, role: string) => {
+export const updateUserRole = async (id: string, role: string, adminId: string) => {
+  // Fetch existing user to capture previous role
+  const existingUser = await UserModel.findById(id).select('-password');
+  if (!existingUser) throw new AppError('User not found', 404);
+
+  const previousRole = existingUser.role;
+
   const user = await UserModel.findByIdAndUpdate(id, { role }, { new: true, runValidators: true }).select('-password');
   if (!user) throw new AppError('User not found', 404);
+
+  await createAuditLog({
+    action: 'USER_ROLE_CHANGED',
+    performedBy: adminId,
+    targetType: 'User',
+    targetId: id,
+    changes: { from: previousRole, to: role },
+    metadata: { userName: user.name, userEmail: user.email },
+  });
+
   return user;
 };
 
-export const updateUserStatus = async (id: string, isActive: boolean) => {
+export const updateUserStatus = async (id: string, isActive: boolean, adminId: string) => {
+  // Fetch existing user to capture previous status
+  const existingUser = await UserModel.findById(id).select('-password');
+  if (!existingUser) throw new AppError('User not found', 404);
+
+  const previousStatus = existingUser.isActive;
+
   const user = await UserModel.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
   if (!user) throw new AppError('User not found', 404);
+
+  await createAuditLog({
+    action: 'USER_STATUS_CHANGED',
+    performedBy: adminId,
+    targetType: 'User',
+    targetId: id,
+    changes: { from: previousStatus, to: isActive },
+    metadata: { userName: user.name, userEmail: user.email },
+  });
+
   return user;
 };
 
