@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import dns from 'dns';
+
 dotenv.config({ path: path.join(__dirname, '.env') });
+
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+dns.promises.setServers(['8.8.8.8', '1.1.1.1']);
+
 import mongoose from 'mongoose';
 import UserModel from './src/models/User.model';
 import TicketModel from './src/models/Ticket.model';

@@ -40,6 +40,13 @@ const uploadFilesToCloudinary = async (files: Express.Multer.File[], userId: str
   return attachments;
 };
 
+const populateTicket = (query: mongoose.Query<any, any>) =>
+  query
+    .populate('createdBy', 'name email role')
+    .populate('assignedTo', 'name email role')
+    .populate('comments.author', 'name email role')
+    .populate('statusHistory.changedBy', 'name email');
+
 export const createTicket = async (data: CreateTicketDTO, userId: string, files: Express.Multer.File[] = []) => {
   const ticketNumber = await generateTicketNumber();
 
@@ -73,7 +80,7 @@ export const createTicket = async (data: CreateTicketDTO, userId: string, files:
     metadata: { ticketNumber: ticket.ticketNumber, title: ticket.title },
   });
 
-  return ticket.populate(['createdBy', 'assignedTo']);
+  return populateTicket(TicketModel.findById(ticket._id));
 };
 
 export const getTickets = async (user: IUser, query: GetTicketsQueryDTO) => {
@@ -115,11 +122,7 @@ export const getTickets = async (user: IUser, query: GetTicketsQueryDTO) => {
 };
 
 export const getTicketById = async (id: string, user: IUser) => {
-  const ticket = await TicketModel.findById(id)
-    .populate('createdBy', 'name email role')
-    .populate('assignedTo', 'name email role')
-    .populate('comments.author', 'name email role')
-    .populate('statusHistory.changedBy', 'name email');
+  const ticket = await populateTicket(TicketModel.findById(id));
 
   if (!ticket) throw new AppError('Ticket not found', 404);
 
@@ -169,9 +172,7 @@ export const updateTicket = async (id: string, data: UpdateTicketDTO, user: IUse
     metadata: { ticketNumber: ticket.ticketNumber, updatedFields: Object.keys(allowedData) },
   });
 
-  return ticket
-    .populate('createdBy', 'name email')
-    .then((t) => t.populate('assignedTo', 'name email'));
+  return populateTicket(TicketModel.findById(ticket._id));
 };
 
 export const updateTicketStatus = async (id: string, status: string, note: string, userId: string) => {
@@ -198,11 +199,7 @@ export const updateTicketStatus = async (id: string, status: string, note: strin
     metadata: { ticketNumber: ticket.ticketNumber },
   });
 
-  return TicketModel.findById(ticket._id)
-    .populate('createdBy', 'name email role')
-    .populate('assignedTo', 'name email role')
-    .populate('comments.author', 'name email role')
-    .populate('statusHistory.changedBy', 'name email');
+  return populateTicket(TicketModel.findById(ticket._id));
 };
 
 export const assignTicket = async (ticketId: string, assignedTo: string, userId: string) => {
@@ -230,7 +227,7 @@ export const assignTicket = async (ticketId: string, assignedTo: string, userId:
     metadata: { ticketNumber: ticket.ticketNumber, assignedToName: agent.name, assignedToId: assignedTo },
   });
 
-  return ticket.populate('assignedTo', 'name email');
+  return populateTicket(TicketModel.findById(ticket._id));
 };
 
 export const addComment = async (ticketId: string, text: string, userId: string, userRole: string) => {
@@ -258,7 +255,7 @@ export const addComment = async (ticketId: string, text: string, userId: string,
     metadata: { ticketNumber: ticket.ticketNumber },
   });
 
-  return ticket.populate('comments.author', 'name email role');
+  return populateTicket(TicketModel.findById(ticket._id));
 };
 
 export const deleteTicket = async (id: string, user: IUser) => {

@@ -14,8 +14,9 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
-  const agentTicketMatch = useMatch('/agent/:id') ?? useMatch('/agent/:id/comments');
-  const currentAgentTicketId = agentTicketMatch?.params?.id ?? null;
+  const matchById = useMatch('/agent/:id');
+  const matchByComments = useMatch('/agent/:id/comments');
+  const currentAgentTicketId = matchByComments?.params?.id ?? matchById?.params?.id ?? null;
 
   const getMenuItems = (): MenuItem[] => {
     if (user?.role === 'Admin') {
