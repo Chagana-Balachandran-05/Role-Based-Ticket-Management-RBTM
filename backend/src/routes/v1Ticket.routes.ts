@@ -9,6 +9,14 @@ const router = Router();
 router.use(protect);
 router.use(generalLimiter);
 
+// Create ticket with optional attachments
+router.post(
+  '/',
+  uploadLimiter,
+  handleAttachmentUpload('attachments'),
+  TicketController.createTicket
+);
+
 // Add attachments to existing ticket
 router.post(
   '/:id/attachments',
