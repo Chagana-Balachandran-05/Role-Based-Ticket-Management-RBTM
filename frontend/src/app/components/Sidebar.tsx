@@ -20,9 +20,9 @@ export default function Sidebar() {
   const getMenuItems = (): MenuItem[] => {
     if (user?.role === 'Admin') {
       return [
-        { icon: Home, label: 'Dashboard', path: '/dashboard' },
-        { icon: Ticket, label: 'Tickets', path: '/tickets' },
-        { icon: Users, label: 'Users', path: '/users' },
+        { icon: Home, label: 'Dashboard', path: '/dashboard', end: true },
+        { icon: Ticket, label: 'Tickets', path: '/tickets', end: true },
+        { icon: Users, label: 'Users', path: '/users', end: true },
       ];
     } else if (user?.role === 'Agent') {
       return [
@@ -43,9 +43,9 @@ export default function Sidebar() {
       ];
     } else {
       return [
-        { icon: Home, label: 'Dashboard', path: '/dashboard' },
-        { icon: Ticket, label: 'My Tickets', path: '/tickets' },
-        { icon: PlusCircle, label: 'Create Ticket', path: '/tickets/create' },
+        { icon: Home, label: 'Dashboard', path: '/dashboard', end: true },
+        { icon: Ticket, label: 'My Tickets', path: '/tickets', end: true },
+        { icon: PlusCircle, label: 'Create Ticket', path: '/tickets/create', end: true },
       ];
     }
   };
