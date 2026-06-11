@@ -34,6 +34,7 @@ app.use(mongoSanitize());
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+app.get('/', (req, res) => res.json({ success: true, message: 'RBTM API is running' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
