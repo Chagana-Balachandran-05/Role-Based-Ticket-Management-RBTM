@@ -1,22 +1,23 @@
 import rateLimit from 'express-rate-limit';
+import { config } from '../config';
 
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 requests per 15 minutes
+  windowMs: config.rateLimit.auth.windowMs,
+  max: config.rateLimit.auth.max,
   message: {
     success: false,
-    message: 'Too many authentication attempts, please try again after 15 minutes',
+    message: config.rateLimit.auth.message,
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 export const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per 15 minutes
+  windowMs: config.rateLimit.general.windowMs,
+  max: config.rateLimit.general.max,
   message: {
     success: false,
-    message: 'Too many requests from this IP, please try again after 15 minutes',
+    message: config.rateLimit.general.message,
   },
   standardHeaders: true,
   legacyHeaders: false,
