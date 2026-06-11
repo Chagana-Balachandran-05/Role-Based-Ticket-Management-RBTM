@@ -37,6 +37,7 @@ export default function AgentWorkspace() {
   const [statusNote, setStatusNote] = useState('');
 
   const isCommentsTab = location.pathname.endsWith('/comments');
+  const isDetailLoading = detailLoading || (!!id && selectedTicket?._id !== id);
 
   useEffect(() => {
     dispatch(fetchTickets({ page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc' }));
@@ -49,7 +50,6 @@ export default function AgentWorkspace() {
       dispatch(clearSelectedTicket());
     }
     return () => {
-      dispatch(clearSelectedTicket());
       dispatch(clearError());
     };
   }, [id, dispatch]);
@@ -134,8 +134,8 @@ export default function AgentWorkspace() {
         {/* ── RIGHT PANEL — Ticket Detail / Empty State ── */}
         <div className="flex-1 min-w-0">
 
-          {/* Loading state — show when id exists but ticket not loaded yet */}
-          {id && (detailLoading || !selectedTicket) && (
+          {/* Loading state */}
+          {id && isDetailLoading && (
             <GlassCard>
               <div className="flex items-center justify-center py-16">
                 <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -155,7 +155,7 @@ export default function AgentWorkspace() {
           )}
 
           {/* Ticket content */}
-          {selectedTicket && !detailLoading && (
+          {id && !isDetailLoading && selectedTicket && (
             <div className="space-y-4">
 
               {/* Header */}
