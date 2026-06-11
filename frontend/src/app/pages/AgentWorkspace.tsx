@@ -35,15 +35,8 @@ export default function AgentWorkspace() {
   const [commentText, setCommentText] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
-  const [initialLoading, setInitialLoading] = useState(true);
 
   const isCommentsTab = location.pathname.endsWith('/comments');
-
-  useEffect(() => {
-    if (!listLoading && (!id || !detailLoading)) {
-      setInitialLoading(false);
-    }
-  }, [listLoading, detailLoading, id]);
 
   useEffect(() => {
     dispatch(fetchTickets({ page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc' }));
@@ -98,18 +91,7 @@ export default function AgentWorkspace() {
     }
   };
 
-  if (initialLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-400 text-sm">Loading workspace...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+
 
   return (
     <Layout>
@@ -152,8 +134,8 @@ export default function AgentWorkspace() {
         {/* ── RIGHT PANEL — Ticket Detail / Empty State ── */}
         <div className="flex-1 min-w-0">
 
-          {/* Loading state */}
-          {detailLoading && !selectedTicket && (
+          {/* Loading state — show when id exists but ticket not loaded yet */}
+          {id && (detailLoading || !selectedTicket) && (
             <GlassCard>
               <div className="flex items-center justify-center py-16">
                 <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -172,7 +154,7 @@ export default function AgentWorkspace() {
             </GlassCard>
           )}
 
-          {/* Ticket content — shown when selectedTicket is loaded */}
+          {/* Ticket content */}
           {selectedTicket && !detailLoading && (
             <div className="space-y-4">
 
