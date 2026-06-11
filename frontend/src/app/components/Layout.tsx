@@ -212,7 +212,7 @@ export default function Layout({ children }: LayoutProps) {
   const getUserInitials = () => getInitials(user?.name);
 
   return (
-    <div className="min-h-screen flex relative pl-32">
+    <div className="min-h-screen flex relative pl-24 md:pl-32">
       {/* Background Blur Decorations */}
       <div className="fixed inset-0 pointer-events-none opacity-40 -z-10">
         <div className="absolute top-[51.5px] right-32 w-[500px] h-[500px] bg-[#10b981] rounded-full blur-[80px] opacity-30" />
@@ -224,14 +224,14 @@ export default function Layout({ children }: LayoutProps) {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col pr-12 py-6">
+      <div className="flex-1 flex flex-col px-3 md:pr-12 py-4 md:py-6">
         {/* Top Navigation Bar */}
         <header className="backdrop-blur-[24px] bg-[rgba(255,255,255,0.4)] border border-[rgba(255,255,255,0.3)] rounded-[24px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] mb-6">
-          <div className="flex items-center justify-between px-[33px] py-[17px]">
+          <div className="flex items-center justify-between px-4 md:px-[33px] py-3 md:py-[17px]">
             {/* Search and Navigation */}
             <div className="flex items-center gap-8">
               {/* Search Bar */}
-              <div className="backdrop-blur-[24px] bg-[rgba(255,255,255,0.3)] border border-[rgba(255,255,255,0.2)] rounded-full px-[17px] py-[9px] flex items-center gap-2">
+              <div className="hidden sm:flex backdrop-blur-[24px] bg-[rgba(255,255,255,0.3)] border border-[rgba(255,255,255,0.2)] rounded-full px-[17px] py-[9px] items-center gap-2">
                 <Search className="w-[15px] h-[15px] text-[#10b981]" />
                 <input
                   type="text"
@@ -270,7 +270,7 @@ export default function Layout({ children }: LayoutProps) {
         {(user?.role === 'Admin' || user?.role === 'User') && location.pathname !== '/tickets/create' && (
           <Link
             to="/tickets/create"
-            className="fixed bottom-[73px] right-[97px] w-16 h-16 rounded-full bg-[#10b981] flex items-center justify-center shadow-[0px_20px_25px_rgba(16,185,129,0.3)] hover:scale-105 transition-transform"
+            className="fixed bottom-6 right-6 md:bottom-[73px] md:right-[97px] w-14 h-14 md:w-16 md:h-16 rounded-full bg-[#10b981] flex items-center justify-center shadow-[0px_20px_25px_rgba(16,185,129,0.3)] hover:scale-105 transition-transform"
           >
             <Plus className="w-[17.5px] h-[17.5px] text-white" />
           </Link>

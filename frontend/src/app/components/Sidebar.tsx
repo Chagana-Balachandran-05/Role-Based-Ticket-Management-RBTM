@@ -8,6 +8,7 @@ interface MenuItem {
   label: string;
   path: string;
   end?: boolean;
+  isSubItem?: boolean;
 }
 
 export default function Sidebar() {
@@ -26,22 +27,19 @@ export default function Sidebar() {
         { icon: Users, label: 'Users', path: '/users', end: true },
       ];
     } else if (user?.role === 'Agent') {
-      return [
-        { icon: Home, label: 'Dashboard', path: '/dashboard', end: false },
+      const items: MenuItem[] = [
+        { icon: Home, label: 'Dashboard', path: '/dashboard', end: true },
         { icon: Ticket, label: 'Assigned Tickets', path: '/agent', end: true },
-        {
-          icon: FileText,
-          label: 'Ticket Details',
-          path: currentAgentTicketId ? `/agent/${currentAgentTicketId}` : '/agent',
-          end: true,
-        },
-        {
-          icon: MessageSquare,
-          label: 'Comments',
-          path: currentAgentTicketId ? `/agent/${currentAgentTicketId}/comments` : '/agent',
-          end: true,
-        },
       ];
+
+      if (currentAgentTicketId) {
+        items.push(
+          { icon: FileText, label: 'Ticket Details', path: `/agent/${currentAgentTicketId}`, end: true, isSubItem: true },
+          { icon: MessageSquare, label: 'Comments', path: `/agent/${currentAgentTicketId}/comments`, end: true, isSubItem: true }
+        );
+      }
+
+      return items;
     } else {
       return [
         { icon: Home, label: 'Dashboard', path: '/dashboard', end: true },
@@ -59,7 +57,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-6 top-6 bottom-6 w-20 backdrop-blur-[16px] bg-[rgba(255,255,255,0.4)] border border-[rgba(255,255,255,0.2)] rounded-[32px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] flex flex-col items-center py-[33px] px-px">
+    <aside className="fixed left-2 md:left-6 top-2 md:top-6 bottom-2 md:bottom-6 w-16 md:w-20 backdrop-blur-[16px] bg-[rgba(255,255,255,0.4)] border border-[rgba(255,255,255,0.2)] rounded-[32px] shadow-[0px_20px_25px_-5px_rgba(0,0,0,0.1),0px_8px_10px_-6px_rgba(0,0,0,0.1)] flex flex-col items-center py-[33px] px-px">
       {/* Logo */}
       <div className="mb-10">
         <div className="w-12 h-12 rounded-full bg-[#10b981] flex items-center justify-center shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]">
@@ -68,24 +66,49 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation Icons */}
-      <nav className="flex-1 flex flex-col gap-6 w-full px-4">
-        {menuItems.map((item) => {
+      <nav className="flex-1 flex flex-col w-full px-2 md:px-4">
+        {menuItems.map((item, index) => {
           const Icon = item.icon;
+          const nextItem = menuItems[index + 1];
+          const isLastSubItem = item.isSubItem && !nextItem?.isSubItem;
+
           return (
-            <NavLink
+            <div
               key={item.label}
-              to={item.path}
-              end={item.end}
-              title={item.label}
-              className={({ isActive }) =>
-                `w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive
-                  ? 'bg-[#10b981] text-white shadow-md'
-                  : 'bg-[rgba(255,255,255,0.2)] text-[#3C4A42] hover:bg-[rgba(255,255,255,0.3)]'
-                }`
-              }
+              className={item.isSubItem ? 'flex items-center relative' : 'mb-5'}
             >
-              <Icon className="w-[18px] h-[18px]" />
-            </NavLink>
+              {/* Vertical connector line */}
+              {item.isSubItem && (
+                <div className="flex flex-col items-center mr-2 self-stretch">
+                  <div className="w-px flex-1 bg-emerald-300/50" />
+                  {isLastSubItem && <div className="w-px h-0 bg-transparent" />}
+                </div>
+              )}
+
+              {/* Horizontal branch line */}
+              {item.isSubItem && (
+                <div className="w-3 h-px bg-emerald-300/50 mr-1 flex-shrink-0" />
+              )}
+
+              <NavLink
+                to={item.path}
+                end={item.end}
+                title={item.label}
+                className={({ isActive }) =>
+                  `flex items-center justify-center transition-all my-1.5 ${
+                    item.isSubItem ? 'w-8 h-8 rounded-2xl' : 'w-12 h-12 rounded-full'
+                  } ${
+                    isActive
+                      ? 'bg-emerald-500/80 backdrop-blur-sm text-white shadow-md border border-emerald-400/30'
+                      : item.isSubItem
+                      ? 'bg-white/20 backdrop-blur-sm text-[#3C4A42] hover:bg-white/30 border border-white/20'
+                      : 'bg-white/20 text-[#3C4A42] hover:bg-white/30'
+                  }`
+                }
+              >
+                <Icon className={item.isSubItem ? 'w-3.5 h-3.5' : 'w-[18px] h-[18px]'} />
+              </NavLink>
+            </div>
           );
         })}
       </nav>
