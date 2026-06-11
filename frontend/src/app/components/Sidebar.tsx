@@ -95,12 +95,10 @@ export default function Sidebar() {
                 end={item.end}
                 title={item.label}
                 className={({ isActive }) =>
-                  `flex items-center justify-center transition-all my-1.5 ${
-                    item.isSubItem ? 'w-8 h-8 rounded-2xl' : 'w-12 h-12 rounded-full'
-                  } ${
-                    isActive
-                      ? 'bg-emerald-500/80 backdrop-blur-sm text-white shadow-md border border-emerald-400/30'
-                      : item.isSubItem
+                  `flex items-center justify-center transition-all my-1.5 ${item.isSubItem ? 'w-8 h-8 rounded-2xl' : 'w-12 h-12 rounded-full'
+                  } ${isActive
+                    ? 'bg-emerald-500/80 backdrop-blur-sm text-white shadow-md border border-emerald-400/30'
+                    : item.isSubItem
                       ? 'bg-white/20 backdrop-blur-sm text-[#3C4A42] hover:bg-white/30 border border-white/20'
                       : 'bg-white/20 text-[#3C4A42] hover:bg-white/30'
                   }`

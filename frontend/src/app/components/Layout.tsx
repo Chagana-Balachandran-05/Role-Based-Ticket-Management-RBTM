@@ -36,7 +36,7 @@ function SettingsModal() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
-  
+
   const { register: registerProfile, handleSubmit: handleSubmitProfile, formState: { errors: profileErrors } } = useForm<ProfileFormData>({
     defaultValues: { name: user?.name || '', email: user?.email || '' }
   });
@@ -74,11 +74,10 @@ function SettingsModal() {
         <button
           type="button"
           onClick={() => setActiveTab('profile')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-xl transition-all cursor-pointer ${
-            activeTab === 'profile'
+          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-xl transition-all cursor-pointer ${activeTab === 'profile'
               ? 'bg-white text-emerald-600 shadow-sm border border-gray-100'
               : 'text-gray-500 hover:text-gray-800 hover:bg-white/20'
-          }`}
+            }`}
         >
           <User className="w-4 h-4" />
           Profile Info
@@ -86,11 +85,10 @@ function SettingsModal() {
         <button
           type="button"
           onClick={() => setActiveTab('security')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-xl transition-all cursor-pointer ${
-            activeTab === 'security'
+          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-xl transition-all cursor-pointer ${activeTab === 'security'
               ? 'bg-white text-emerald-600 shadow-sm border border-gray-100'
               : 'text-gray-500 hover:text-gray-800 hover:bg-white/20'
-          }`}
+            }`}
         >
           <Lock className="w-4 h-4" />
           Security
@@ -107,13 +105,12 @@ function SettingsModal() {
               </div>
               <h3 className="font-semibold text-lg text-gray-850">{user?.name}</h3>
               <div className="flex flex-wrap gap-2 mt-2 justify-center">
-                <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  user?.role === 'Admin'
+                <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${user?.role === 'Admin'
                     ? 'bg-red-50 text-red-600 border border-red-100'
                     : user?.role === 'Agent'
-                    ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                    : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                }`}>
+                      ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                      : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                  }`}>
                   {user?.role}
                 </span>
                 {user?.createdAt && (

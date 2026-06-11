@@ -1,19 +1,25 @@
 import { Router } from 'express';
 import * as TicketController from '../controllers/ticket.controller';
 import { protect } from '../middleware/auth.middleware';
+import { authorize } from '../middleware/role.middleware';
+import { validate } from '../middleware/validate.middleware';
 import { generalLimiter } from '../middleware/rateLimit.middleware';
 import { uploadLimiter } from '../middleware/throttle.middleware';
 import { handleAttachmentUpload } from '../middleware/multer.config';
+import { createTicketValidator } from '../validators/ticket.validator';
 
 const router = Router();
 router.use(protect);
 router.use(generalLimiter);
 
-// Create ticket with optional attachments
+// Create ticket with optional attachments — mirrors /api/tickets POST guards exactly
 router.post(
   '/',
+  authorize('Admin', 'User'),
   uploadLimiter,
   handleAttachmentUpload('attachments'),
+  createTicketValidator,
+  validate,
   TicketController.createTicket
 );
 

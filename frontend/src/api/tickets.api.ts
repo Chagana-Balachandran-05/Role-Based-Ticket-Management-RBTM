@@ -7,7 +7,7 @@ export const getTicketByIdApi = (id: string) =>
   api.get(`/tickets/${id}`);
 
 export const createTicketApi = (data: object | FormData, headers?: object) =>
-  api.post('/v1/tickets', data, { headers });
+  api.post('/tickets', data, { headers });
 
 export const updateTicketApi = (id: string, data: object) =>
   api.put(`/tickets/${id}`, data);
