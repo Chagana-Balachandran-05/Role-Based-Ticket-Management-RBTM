@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Search, Filter, ChevronLeft, ChevronRight, Eye, Edit, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import Layout from '../components/Layout';
 import GlassCard from '../components/GlassCard';
@@ -22,7 +22,13 @@ export default function TicketList() {
   const { user } = useAppSelector((s) => s.auth);
   const { tickets, listLoading, error, totalPages, page } = useAppSelector((s) => s.tickets);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+
+  // Sync search input state with the URL query parameters
+  useEffect(() => {
+    setSearchQuery(searchParams.get('search') || '');
+  }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'Open' | 'In Progress' | 'Resolved' | 'Closed'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'Low' | 'Medium' | 'High' | 'Urgent'>('all');
   const [currentPage, setCurrentPage] = useState(1);

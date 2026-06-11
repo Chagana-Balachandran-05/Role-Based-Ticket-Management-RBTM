@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Plus, Search, Settings, User, Lock, Calendar } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -205,9 +205,17 @@ function SettingsModal() {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAppSelector((s) => s.auth);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/tickets?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+    }
+  };
 
   const getUserInitials = () => getInitials(user?.name);
 
@@ -238,6 +246,7 @@ export default function Layout({ children }: LayoutProps) {
                   placeholder="Search resources..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearch}
                   className="bg-transparent border-0 outline-none text-sm text-[#6b7280] placeholder:text-[#6b7280] w-48"
                 />
               </div>
