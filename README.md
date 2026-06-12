@@ -1,108 +1,224 @@
-# Role-Based Ticket Management System
+# Role-Based Ticket Management System (RBTM)
 
-An enterprise-grade, full-stack support ticket system built with Node.js/Express/TypeScript on the backend and React/Redux Toolkit/TypeScript on the frontend. Features secure role-based access control, real-time-like updates, status history logs, and performance-optimized state management.
+A full-stack MERN support ticket system with role-based access control, built with React, Redux Toolkit, Node.js, Express, and MongoDB. Features JWT authentication, real-time attachment uploads via Cloudinary, audit logging, and a clean glassmorphism UI.
 
-## Key Features
-- **Strict Role Isolation**: Administrative dashboards, Agent workflows with status/comment/assignment updates, and standard User ticket submission.
-- **Security Protocols**: Sanitized MongoDB queries, JSON Web Token (JWT) authorization, request rate limiters, and backend-enforced role registration validation.
-- **Modern Forms & State**: Form inputs managed with `react-hook-form` and global UI toast notifications.
-- **Test Suite**: Automated integration testing for authentication and ticket lifecycle with in-memory Mongo databases.
+## Live Demo
+
+| | URL |
+|---|---|
+| **Frontend** | https://role-based-ticket-management-rbtm.vercel.app |
+| **Backend API** | https://role-based-ticket-management-rbtm-production.up.railway.app |
 
 ## Test Credentials
-The database seeds with the following test accounts:
-| Role  | Email           | Password  |
-|-------|----------------|-----------|
-| Admin | admin@rbtm.com | Admin@123 |
-| Agent | agent@rbtm.com | Agent@123 |
-| User  | user@rbtm.com  | User@123  |
+
+| Role  | Email             | Password    |
+|-------|-------------------|-------------|
+| Admin | admin@rbtm.com    | admin123    |
+| Agent | agent@rbtm.com    | Agent@123   |
+| User  | user@rbtm.com     | user123     |
+
+> No local setup required. Open the frontend URL, log in with any of the credentials above, and explore the system.
+
+---
+
+## Features
+
+### Role-Based Access
+- **Admin** — full dashboard with system statistics, manage all tickets, assign tickets to agents, manage users (view, activate/deactivate, change role), delete tickets
+- **Agent** — dedicated workspace for assigned tickets, update ticket status, add comments, upload attachments
+- **User** — create tickets, view own tickets, add comments, upload attachments
+
+### Ticket Management
+- Auto-generated ticket numbers (`TKT-0001`, `TKT-0002`, ...)
+- Categories: Bug, Feature Request, Technical Issue, Payment Issue, Account Issue, Other
+- Priority levels: Low, Medium, High, Urgent
+- Status workflow: Open → In Progress → Resolved → Closed
+- Full status history with notes and timestamps
+- Comments thread on every ticket
+- File attachments via Cloudinary with real-time SSE status updates
+
+### Dashboard
+- Ticket count cards (total, open, in progress, resolved, closed)
+- Status distribution pie chart and priority bar chart
+- Admin extras: tickets created today, this week, unassigned open tickets, overdue tickets, recent activity feed
+
+### Other
+- Debounced search, multi-field filters (status, priority, category), sortable columns, pagination
+- Audit log for every action (ticket created, updated, assigned, commented, deleted)
+- Rate limiting on auth and general API endpoints
+- MongoDB query sanitisation, Helmet security headers
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, TypeScript, Redux Toolkit, Axios, React Router, Tailwind CSS, shadcn/ui |
+| Backend | Node.js, Express, TypeScript |
+| Database | MongoDB Atlas, Mongoose |
+| Auth | JWT (jsonwebtoken), bcryptjs |
+| File storage | Cloudinary |
+| Deployment | Vercel (frontend), Railway (backend) |
+
+---
 
 ## Local Setup
 
-### Step 1: Configure Environment Files
-Before running the applications, copy the `.env.example` templates to `.env` in both the backend and frontend folders.
+### Prerequisites
+- Node.js 18+
+- A MongoDB Atlas connection string
+- A Cloudinary account (for file attachments)
 
-#### Backend Configuration
-Copy `backend/.env.example` to `backend/.env`:
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/Chagana-Balachandran-05/Role-Based-Ticket-Management-RBTM.git
+cd Role-Based-Ticket-Management-RBTM
+```
+
+### Step 2 — Configure backend environment
+
 ```bash
 cd backend
 cp .env.example .env
 ```
-Ensure the following variables are defined in `backend/.env`:
-- `PORT`: Server port (default `5000`)
-- `MONGODB_URI`: MongoDB connection string
-- `JWT_SECRET`: Secret key used to sign tokens
-- `JWT_EXPIRES_IN`: JWT expiration length (e.g., `7d`)
-- `FRONTEND_URL`: URL of the frontend application (default `http://localhost:5173`)
-- `NODE_ENV`: Application environment (`development`, `production`, or `test`)
 
-#### Frontend Configuration
-Copy `frontend/.env.example` to `frontend/.env`:
+Edit `backend/.env`:
+
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=7d
+FRONTEND_URL=http://localhost:5173
+NODE_ENV=development
+
+# Cloudinary (required for file attachments)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+### Step 3 — Configure frontend environment
+
 ```bash
-cd frontend
+cd ../frontend
 cp .env.example .env
 ```
-Ensure the following variable is defined in `frontend/.env`:
-- `VITE_API_URL`: URL pointing to the backend API (default `http://localhost:5000/api`)
 
-### Step 2: Install Dependencies and Seed Database
-Run the following commands to install packages and populate the database with initial users and tickets.
+Edit `frontend/.env`:
 
-#### Backend
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+### Step 4 — Install dependencies and seed the database
+
 ```bash
-cd backend
+# Backend
+cd ../backend
 npm install
 npm run seed
-```
 
-#### Frontend
-```bash
-cd frontend
+# Frontend
+cd ../frontend
 npm install
 ```
 
-### Step 3: Run the Applications
+### Step 5 — Run the applications
 
-#### Running Backend
-To start the backend in development mode with hot-reloading:
 ```bash
+# Terminal 1 — backend (http://localhost:5000)
 cd backend
 npm run dev
-```
-The server will run on `http://localhost:5000`.
 
-#### Running Frontend
-To start the frontend dev server:
-```bash
+# Terminal 2 — frontend (http://localhost:5173)
 cd frontend
 npm run dev
 ```
-The client will run on `http://localhost:5173`.
 
-## Testing
-To run the automated integration tests using Jest and `mongodb-memory-server`:
+---
+
+## Running Tests
+
 ```bash
 cd backend
 npm test
 ```
 
-## Known Limitations
-- **Token Expiration & Session Flow**: The system issues a JSON Web Token (JWT) with a defined expiration (e.g., `7d`). Currently, there is no refresh token mechanism implemented. Once the access token expires, the client-side session ends, and the user must re-authenticate.
-- **Single-device Sessions**: Since tokens are stateless and stored client-side in local storage, active sessions cannot be terminated or invalidated from the backend before token expiration.
+Integration tests use Jest and `mongodb-memory-server`. Covers the full auth lifecycle and ticket CRUD operations.
+
+---
 
 ## API Summary
-* **POST**   `/api/auth/register` - Registers a new user (role defaults to `User`)
-* **POST**   `/api/auth/login` - Authenticates a user and returns a token
-* **GET**    `/api/auth/me` - Retrieves current logged-in user profile
-* **GET**    `/api/tickets` - Retrieves tickets (isolated by creator for Users, filtered/assigned for Agents/Admins)
-* **POST**   `/api/tickets` - Submits a new ticket
-* **GET**    `/api/tickets/:id` - Details of a single ticket
-* **PUT**    `/api/tickets/:id` - Updates ticket properties (restricted fields)
-* **DELETE** `/api/tickets/:id` - Deletes a ticket (restricted to creator/admin)
-* **PATCH**  `/api/tickets/:id/status` - Updates ticket status (restricted to Agent/Admin)
-* **PATCH**  `/api/tickets/:id/assign` - Assigns ticket to an agent (restricted to Agent/Admin)
-* **POST**   `/api/tickets/:id/comments` - Adds comment to a ticket
-* **GET**    `/api/users` - Paginated users directory (Admin only)
-* **GET**    `/api/users/:id` - Retrieves user details
-* **PUT**    `/api/users/:id` - Updates user profile details
-* **DELETE** `/api/users/:id` - Deletes user (Admin only)
-* **GET**    `/api/dashboard/stats` - Analytics dashboard metrics (Admin only)
+
+### Auth — `/api/auth`
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| POST | `/register` | Public | Register a new user (role defaults to User) |
+| POST | `/login` | Public | Log in and receive a JWT |
+| GET | `/me` | Protected | Get current user profile |
+
+### Tickets — `/api/tickets`
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| GET | `/` | All roles | List tickets (scoped by role) with search, filter, sort, pagination |
+| POST | `/` | Admin, User | Create a new ticket (supports file attachments) |
+| GET | `/:id` | All roles | Get a single ticket with comments, status history, attachments |
+| PUT | `/:id` | Admin, Agent | Update ticket fields |
+| DELETE | `/:id` | Admin | Delete a ticket |
+| PATCH | `/:id/status` | Admin, Agent | Update ticket status with a note |
+| PATCH | `/:id/assign` | Admin | Assign ticket to an agent |
+| POST | `/:id/comments` | All roles | Add a comment |
+| POST | `/:id/attachments` | All roles | Upload file attachments |
+| DELETE | `/:id/attachments/:attachmentId` | All roles | Delete an attachment |
+
+### Users — `/api/users`
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| GET | `/` | Admin | List all users with pagination |
+| GET | `/agents` | Admin | List users with Agent role |
+| GET | `/:id` | Admin | Get a user by ID |
+| PUT | `/:id` | Admin | Update user details |
+| DELETE | `/:id` | Admin | Delete a user |
+| PATCH | `/:id/role` | Admin | Change a user's role |
+| PATCH | `/:id/status` | Admin | Activate or deactivate a user |
+| PATCH | `/me/profile` | Protected | Update own profile |
+| PATCH | `/me/password` | Protected | Change own password |
+
+### Dashboard — `/api/dashboard`
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| GET | `/stats` | Protected | Ticket statistics scoped to the logged-in user's role |
+
+### Audit Logs — `/api/audit-logs`
+
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| GET | `/` | Admin | Paginated audit log of all system actions |
+
+---
+
+## Deployment Configuration
+
+### Backend (Railway)
+- `railway.toml` is included at `backend/railway.toml`
+- Set all environment variables in Railway project settings
+- `FRONTEND_URL` must be set to your Vercel URL for CORS to work
+
+### Frontend (Vercel)
+- `vercel.json` handles SPA routing rewrites
+- Set `VITE_API_URL` to your Railway backend URL in Vercel project settings
+
+---
+
+## Known Limitations
+
+- **No refresh tokens** — JWT expires after 7 days. The user must log in again after expiry.
+- **Stateless sessions** — tokens are stored in `localStorage` and cannot be invalidated server-side before expiry.
+- **No email notifications** — ticket assignment and status update events do not send emails.
